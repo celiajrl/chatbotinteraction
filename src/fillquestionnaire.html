@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Questionnaire</title>
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+    <style>
+        form {
+            background-color: #87CEEB;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            color: #fff;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .scale-options {
+            display: flex;
+            align-items: center;
+        }
+
+        .scale-circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #fff;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            cursor: pointer;
+        }
+
+        .scale-circle.selected {
+            background-color: #333; /* Color oscuro */
+            color: #fff; /* Texto blanco */
+        }
+
+        .question-cell {
+            width: 100%;
+            text-align: left;
+            padding-right: 15px;
+        }
+
+        .btn-next {
+            background-color: #4682B4;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .btn-next:hover {
+            background-color: #36648B;
+        }
+
+        .answer-cell {
+            padding-bottom: 20px; /* Espacio entre filas */
+        }
+
+        .text-input {
+            width: 200px; /* Ancho del campo de texto */
+            max-width: 100%; /* Ancho máximo igual al del contenedor */
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="header-content">
+            <div class="header-content-inner">
+                <form id="formoptions">
+                    <table class="preconfigured-options" id="questionTableBody"></table>
+                </form>
+            </div>
+            <button type="button" class="btn btn-next btn-lg" onclick="goToNextQuestionnaire()">Next</button>
+        </div>
+    </header>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        let responses = {};
+        let totalQuestions = 0;
+        let questionnaireIds = [];
+        let questionnaireId;
+        let sus = {};
+        let chatbotId;
+        let userId;
+        let participantId;
+        let activeId;
+        let type;
+
+        $(document).ready(function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            activeId = urlParams.get('activeId');
+            $.get(`http://localhost:3001/active/${activeId}`, function(data) {
+                const active = data;
+                if (active && active.questionnaires) {
+                    questionnaireIds = active.questionnaires;
+                    console.log(questionnaireIds);
+                    userId = active.userId;
+                    participantId = active.participantId;
+                    chatbotId = active.chatbotId;
+                    loadNextQuestionnaire();
+                }
+            }).fail(function(xhr, status, error) {
+                console.error("Error al obtener datos del servidor:", error);
+                alert("This link has already been used.");
+            });
+        });
+
+        function goToNextQuestionnaire() {
+            const answers = Object.values(responses).length;
+            if (totalQuestions === answers) {
+                if (type === "preconfigured") {
+                    const susValue = calculateSUS(); 
+                    sus[questionnaireId] = susValue; 
+                    console.log(responses);
+                    sendResultsToServer(responses, susValue, questionnaireId);
+                } else if (type === "custom"){
+                    console.log(responses);
+                    susValue = -1;
+                    sendResultsToServer(responses, susValue, questionnaireId);
+                }
+                responses = {};
+                totalQuestions = 0;
+                questionnaireIds.shift(); 
+
+                if (questionnaireIds.length > 0) {
+                    loadNextQuestionnaire(); 
+                } else {
+                    console.log('All questionnaires completed');
+                }
+            } else {
+                alert('Please answer all questions before proceeding.');
+            }
+        }
+
+        function loadNextQuestionnaire() {
+            questionnaireId = questionnaireIds[0];
+            console.log('quest id'+questionnaireId);
+            $.get(`http://localhost:3001/questionnaires/${questionnaireId}`, function(data) {
+                const questionnaire = data;
+                type = questionnaire.type;
+                if (questionnaire && questionnaire.questions) {
+                    if (type === 'preconfigured') {
+                        totalQuestions = questionnaire.questions.length * 2;
+                        displayPreconfiguredQuestions(questionnaire.questions);
+                    } else if (type === 'custom') {
+                        totalQuestions = questionnaire.questions.length;
+                        displayCustomQuestions(questionnaire.questions);
+                    } else {
+                        console.error('Unknown questionnaire type:', questionnaire.type);
+                    }
+                }
+            });
+        }
+
+        function displayPreconfiguredQuestions(questions) {
+            const tbody = $('#questionTableBody');
+            tbody.empty();
+
+            questions.forEach(function (question, index) {
+                const questionNumber = index + 1; 
+                const row = $('<tr>');
+                const positiveCell = $('<td>').addClass('question-cell').text(questionNumber * 2 - 1 + '. ' + question.positive);
+                const scaleOptionsCell = $('<td>').addClass('scale-options');
+
+                for (let i = 1; i <= 5; i++) {
+                    const scaleCircle = $('<div>').addClass('scale-circle').text(i).attr('data-value', i);
+                    scaleCircle.click(function () {
+                        selectScaleValue(questionNumber * 2 - 1, i, scaleOptionsCell); 
+                    });
+                    scaleOptionsCell.append(scaleCircle);
+                }
+
+                row.append(positiveCell, scaleOptionsCell);
+                tbody.append(row);
+
+                const negrow = $('<tr>');
+                const negativeCell = $('<td>').addClass('question-cell').text(questionNumber * 2 + '. ' + question.negative);
+                const scaleOptionsCellneg = $('<td>').addClass('scale-options');
+
+                for (let i = 1; i <= 5; i++) {
+                    const scaleCircle = $('<div>').addClass('scale-circle').text(i).attr('data-value', i);
+                    scaleCircle.click(function () {
+                        selectScaleValue(questionNumber * 2, i, scaleOptionsCellneg); 
+                    });
+                    scaleOptionsCellneg.append(scaleCircle);
+                }
+
+                negrow.append(negativeCell, scaleOptionsCellneg);
+                tbody.append(negrow);
+            });
+        }
+
+        function displayCustomQuestions(questions) {
+            const tbody = $('#questionTableBody');
+            tbody.empty();
+
+            questions.forEach(function (question, index) {
+                const questionNumber = index + 1;
+                const row = $('<tr>');
+                const questionCell = $('<td>').addClass('question-cell').text((index + 1) + '. ' + question.question);
+                const answerInputCell = $('<td>').addClass('answer-cell'); 
+
+                switch (question.type.toLowerCase()) {
+                    case 'scale':
+                        const scaleOptions = $('<div>').addClass('scale-options');
+
+                        for (let i = 1; i <= 5; i++) {
+                            const scaleCircle = $('<div>').addClass('scale-circle').text(i);
+                            scaleCircle.click(function () {
+                                selectScaleValue(questionNumber, i, answerInputCell); 
+                            });
+                            scaleOptions.append(scaleCircle);
+                        }
+
+                        answerInputCell.append(scaleOptions);
+                        break;
+                    case 'yesno':
+                        const yesRadio = $('<input>').attr({ type: 'radio', name: 'answer' + questionNumber, value: 'Yes' });
+                        const noRadio = $('<input>').attr({ type: 'radio', name: 'answer' + questionNumber, value: 'No' });
+
+                        yesRadio.change(function () {
+                            console.log('llego a yes');
+                            responses[questionNumber] = $(this).val();
+                            console.log(responses[questionNumber]);
+                            console.log(responses);
+                        });
+                        noRadio.change(function () {
+                            console.log('llego a no');
+                            responses[questionNumber] = $(this).val();
+                            console.log(responses[questionNumber]);
+                            console.log(responses);
+                        });
+
+                        answerInputCell.append(yesRadio, ' Yes ', noRadio, ' No');
+                        break;
+                    case 'text':
+                        const textInput = $('<input>').attr({ type: 'text', class: 'form-control text-input', id: 'answer' + questionNumber, placeholder: 'Enter answer' });
+
+                        textInput.change(function () {
+                            console.log('textoo');
+                            responses[questionNumber] = $(this).val();
+                            console.log(responses[questionNumber]);
+                            console.log(responses);
+                        });
+
+                        answerInputCell.append(textInput);
+                        break;
+                    case 'list':
+                        const selectInput = $('<select>').addClass('form-control').attr({ id: 'answer' + questionNumber }).css('width', '150px');
+                        selectInput.append($('<option>', { value: '', text: 'Select option...' })); // Opción predeterminada
+                        question.answerOptions.forEach(function(option) {
+                            selectInput.append($('<option>', { value: option, text: option }));
+                        });
+                        selectInput.change(function() {
+                            responses[questionNumber] = $(this).val();
+                            console.log(responses[questionNumber]);
+                            console.log(responses);
+                        });
+                        answerInputCell.append(selectInput);
+                        break;
+                    default:
+                        answerInputCell.text('Unknown Type');
+                        break;
+                }
+
+                row.append(questionCell, answerInputCell);
+                tbody.append(row);
+            });
+        }
+
+
+
+        function selectScaleValue(questionNumber, value, scaleOptionsCell) {
+            scaleOptionsCell.find('.scale-circle').removeClass('selected');
+            scaleOptionsCell.find(`.scale-circle[data-value="${value}"]`).addClass('selected');
+            responses[questionNumber] = value-1;
+            console.log(responses[questionNumber]);
+        }
+
+        function calculateSUS() {
+            let sum = 0;
+            for (const key in responses) {
+                if (responses.hasOwnProperty(key)) {
+                    if (key % 2 === 0) {
+                        responses[key] = 5 - responses[key];
+                    } else {
+                        responses[key]--;
+                    }
+                    sum += responses[key];
+                }
+            }
+            const susValue = sum * 2.5;
+            return susValue;
+        }
+
+        function sendResultsToServer(answers, susValue, questionnaireId) {
+            const requestData = {
+                chatbotId: chatbotId,
+                questionnaireId: questionnaireId,
+                sus: susValue,
+                answers: answers
+            };
+
+            $.ajax({
+                type: 'POST',
+                url: 'http://localhost:3001/submit-results',
+                contentType: 'application/json',
+                data: JSON.stringify(requestData),
+                success: function(response) {
+                    console.log('Results submitted successfully:', response);
+                    console.log(response); 
+                    createCompleteObject(questionnaireId, response); 
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error submitting results:', error);
+                }
+            });
+        }
+
+        function createCompleteObject(questionnaireId, resultId) {
+            const currentDate = new Date();
+            const completeData = {
+                userId: userId,
+                participantId: participantId,
+                date: currentDate,
+                questionnaireId: questionnaireId,
+                chatbotId: chatbotId,
+                resultId: resultId,
+                activeId: activeId
+            };
+
+            $.ajax({
+                type: 'POST',
+                url: 'http://localhost:3001/complete',
+                contentType: 'application/json',
+                data: JSON.stringify(completeData),
+                success: function(response) {
+                    console.log('Complete object created successfully:', response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error creating complete object:', error);
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
