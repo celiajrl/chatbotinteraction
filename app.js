@@ -96,11 +96,11 @@ app.get('/:activeId', async (req, res) => {
         
         console.log("Creando entorno virtual de Rasa...");
         
-        exec('python3 -m venv ./venv && bash -c ". ./venv/bin/activate"&& pip install -U rasa', async (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error al crear el entorno virtual / activarlo / instalar rasa: ${error.message}`);
-                return res.status(500).send('Error interno del servidor');
-            }
+        //exec('python3 -m venv ./venv && bash -c ". ./venv/bin/activate"&& pip install -U rasa', async (error, stdout, stderr) => {
+         //   if (error) {
+         //       console.error(`Error al crear el entorno virtual / activarlo / instalar rasa: ${error.message}`);
+          //      return res.status(500).send('Error interno del servidor');
+          //  }
 
             console.log('Entorno virtual creado correctamente.');
 
@@ -149,7 +149,7 @@ app.get('/:activeId', async (req, res) => {
 
                 res.sendFile(path.join(__dirname, '../chatbotinteraction/index.html'));
             });
-        });
+        //});
     } catch (error) {
         console.error('Error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
