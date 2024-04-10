@@ -105,6 +105,9 @@ app.get('/:activeId', async (req, res) => {
         fs.readdirSync(filesDir).forEach(file => {
             fs.copyFileSync(path.join(filesDir, file), path.join(destDir, file));
         });
+        fs.readdirSync('decompressed').forEach(file => {
+            console.log(file);
+        });
         console.log('Entrenando bot...');
         // Entrenar el modelo Rasa
         exec('. ./venv/bin/activate && cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
