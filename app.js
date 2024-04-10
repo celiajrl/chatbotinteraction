@@ -107,7 +107,7 @@ app.get('/:activeId', async (req, res) => {
         });
         console.log('Entrenando bot...');
         // Entrenar el modelo Rasa
-        exec('source ./venv/bin/activate && cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
+        exec('. ./venv/bin/activate && cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
             if (rasaTrainError) {
                 console.error(`Error al entrenar el modelo Rasa: ${rasaTrainError.message}`);
                 return res.status(500).send('Error al entrenar el modelo Rasa');
