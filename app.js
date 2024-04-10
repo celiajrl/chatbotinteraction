@@ -90,66 +90,54 @@ app.get('/:activeId', async (req, res) => {
             return res.status(404).json({ message: 'Chatbot not found' });
         }
 
-
         console.log(questionnaires);
-        console.log("Creando entorno virtual de Rasa...");
-        
-        console.log("Creando entorno virtual de Rasa...");
-        
-        //exec('python3 -m venv ./venv && bash -c ". ./venv/bin/activate"&& pip install -U rasa', async (error, stdout, stderr) => {
-         //   if (error) {
-         //       console.error(`Error al crear el entorno virtual / activarlo / instalar rasa: ${error.message}`);
-          //      return res.status(500).send('Error interno del servidor');
-          //  }
 
-            console.log('Entorno virtual creado correctamente.');
+        console.log("Descompresión del archivo ZIP:");
+        // Descomprimir el archivo ZIP
+        const zipBuffer = Buffer.from(chatbot.zipFile, 'base64');
+        const zip = new AdmZip(zipBuffer);
+        zip.extractAllTo('decompressed', true);
+        console.log('Archivos descomprimidos en:', path.resolve('decompressed'));
 
-            console.log("Descompresión del archivo ZIP:");
-            // Descomprimir el archivo ZIP
-            const zipBuffer = Buffer.from(chatbot.zipFile, 'base64');
-            const zip = new AdmZip(zipBuffer);
-            zip.extractAllTo('decompressed', true);
+        // Copiar o mover archivos de la carpeta "files" al directorio de destino
+        const filesDir = path.join(__dirname, 'files');
+        const destDir = 'decompressed';
+        fs.readdirSync(filesDir).forEach(file => {
+            fs.copyFileSync(path.join(filesDir, file), path.join(destDir, file));
+        });
+        console.log('Entrenando bot...');
+        // Entrenar el modelo Rasa
+        exec('source ./venv/bin/activate && cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
+            if (rasaTrainError) {
+                console.error(`Error al entrenar el modelo Rasa: ${rasaTrainError.message}`);
+                return res.status(500).send('Error al entrenar el modelo Rasa');
+            }
 
-            // Copiar o mover archivos de la carpeta "files" al directorio de destino
-            const filesDir = path.join(__dirname, 'files');
-            const destDir = 'decompressed';
-            fs.readdirSync(filesDir).forEach(file => {
-                fs.copyFileSync(path.join(filesDir, file), path.join(destDir, file));
+            console.log('Modelo Rasa entrenado correctamente.');
+
+            // Ejecutar Rasa con la configuración deseada
+            rasaProcess = spawn('rasa', ['run', '--enable-api', '--cors', '*'], {
+                cwd: path.join(__dirname, 'decompressed'),
+                detached: true,
+                stdio: ['ignore', 'pipe', 'pipe']
             });
-            console.log('Entrenando bot...');
-            // Entrenar el modelo Rasa
-            exec('cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
-                if (rasaTrainError) {
-                    console.error(`Error al entrenar el modelo Rasa: ${rasaTrainError.message}`);
-                    return res.status(500).send('Error al entrenar el modelo Rasa');
-                }
 
-                console.log('Modelo Rasa entrenado correctamente.');
-
-                // Ejecutar Rasa con la configuración deseada
-                rasaProcess = spawn('rasa', ['run', '--enable-api', '--cors', '*'], {
-                    cwd: path.join(__dirname, 'decompressed'),
-                    detached: true,
-                    stdio: ['ignore', 'pipe', 'pipe']
-                });
-
-                rasaProcess.stdout.on('data', (data) => {
-                    console.log(`Rasa stdout: ${data}`);
-                });
-
-                rasaProcess.stderr.on('data', (data) => {
-                    console.error(`Rasa stderr: ${data}`);
-                });
-
-                rasaProcess.on('close', (code) => {
-                    console.log(`Rasa proceso hijo terminado con código de salida ${code}`);
-                });
-
-                console.log('Chatbot ejecutado correctamente.');
-
-                res.sendFile(path.join(__dirname, '../chatbotinteraction/index.html'));
+            rasaProcess.stdout.on('data', (data) => {
+                console.log(`Rasa stdout: ${data}`);
             });
-        //});
+
+            rasaProcess.stderr.on('data', (data) => {
+                console.error(`Rasa stderr: ${data}`);
+            });
+
+            rasaProcess.on('close', (code) => {
+                console.log(`Rasa proceso hijo terminado con código de salida ${code}`);
+            });
+
+            console.log('Chatbot ejecutado correctamente.');
+
+            res.sendFile(path.join(__dirname, '../chatbotinteraction/index.html'));
+        });
     } catch (error) {
         console.error('Error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
