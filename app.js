@@ -57,6 +57,7 @@ app.get('/questionnaires/:questionnaireId', async (req, res) => {
 // GET ACTIVE
 app.get('/active/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
+    console.log(activeId);
     try {
         const active = await db.collection('active').findOne({ _id: ObjectId(activeId)});
         
