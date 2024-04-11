@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: my-app
+    runtime: nodejs
+    buildCommand: python3 -m venv ./venv && bash -c ". ./venv/bin/activate && pip install -U rasa"
+    startCommand: node app.js
+
