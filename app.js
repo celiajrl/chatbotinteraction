@@ -7,6 +7,7 @@ const { connectToDb, getDb } = require('./db');
 const AdmZip = require('adm-zip');
 const { exec, spawn } = require('child_process'); 
 
+
 const chatbotController = require('./controllers/chatbotController');
 const questionnaireController = require('./controllers/questionnaireController');
 
@@ -72,9 +73,6 @@ app.get('/active/:activeId', async (req, res) => {
     }
 });
 
-
-const { exec, spawn } = require('child_process');
-const path = require('path');
 
 app.get('/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
