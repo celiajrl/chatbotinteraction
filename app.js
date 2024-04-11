@@ -102,7 +102,7 @@ app.get('/:activeId', async (req, res) => {
         console.log('Archivos descomprimidos en:', path.resolve('decompressed'));
 
         // Copiar o mover archivos de la carpeta "files" al directorio de destino
-        const filesDir = path.join(__dirname, 'files');
+        const filesDir = path.join(__dirname, '../files');
         const destDir = '/opt/render/.local/bin/rasa/decompressed';
         fs.readdirSync(filesDir).forEach(file => {
             fs.copyFileSync(path.join(filesDir, file), path.join(destDir, file));
