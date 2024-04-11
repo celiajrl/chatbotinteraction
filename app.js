@@ -94,7 +94,7 @@ app.get('/:activeId', async (req, res) => {
 
         console.log(questionnaires);
 
-        exec('python3 -m venv ./venv && source ./venv/bin/activate && pip install -U rasa', async (error, stdout, stderr) => {
+        exec('python3 -m venv ./venv && ../venv/bin/activate && pip install -U rasa', async (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error al crear el entorno virtual / activarlo / instalar rasa: ${error.message}`);
                 return res.status(500).send('Error interno del servidor');
@@ -109,7 +109,7 @@ app.get('/:activeId', async (req, res) => {
             zip.extractAllTo('decompressed', true);
         
             // Entrenar el modelo Rasa
-            exec('source ./venv/bin/activate && cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
+            exec('../venv/bin/activate && cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
                 if (rasaTrainError) {
                     console.error(`Error al entrenar el modelo Rasa: ${rasaTrainError.message}`);
                     return res.status(500).send('Error al entrenar el modelo Rasa');
