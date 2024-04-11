@@ -98,7 +98,7 @@ app.get('/:activeId', async (req, res) => {
         // Descomprimir el archivo ZIP
         const zipBuffer = Buffer.from(chatbot.zipFile, 'base64');
         const zip = new AdmZip(zipBuffer);
-        zip.extractAllTo('decompressed', true);
+        zip.extractAllTo('/opt/render/.local/bin/rasa/decompressed', true);
         console.log('Archivos descomprimidos en:', path.resolve('decompressed'));
 
         // Copiar o mover archivos de la carpeta "files" al directorio de destino
