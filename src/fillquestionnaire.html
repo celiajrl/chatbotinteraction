@@ -101,7 +101,7 @@
         $(document).ready(function () {
             const urlParams = new URLSearchParams(window.location.search);
             activeId = urlParams.get('activeId');
-            $.get(`https://interactwithchatbot.up.railway.app/active/${activeId}`, function(data) {
+            $.get(`http://localhost:3001/active/${activeId}`, function(data) {
                 const active = data;
                 if (active && active.questionnaires) {
                     questionnaireIds = active.questionnaires;
@@ -147,7 +147,7 @@
         function loadNextQuestionnaire() {
             questionnaireId = questionnaireIds[0];
             console.log('quest id'+questionnaireId);
-            $.get(`https://interactwithchatbot.up.railway.app/questionnaires/${questionnaireId}`, function(data) {
+            $.get(`http://localhost:3001/questionnaires/${questionnaireId}`, function(data) {
                 const questionnaire = data;
                 type = questionnaire.type;
                 if (questionnaire && questionnaire.questions) {
@@ -315,7 +315,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: 'https://interactwithchatbot.up.railway.app/submit-results',
+                url: 'http://localhost:3001/submit-results',
                 contentType: 'application/json',
                 data: JSON.stringify(requestData),
                 success: function(response) {
@@ -343,7 +343,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: 'https://interactwithchatbot.up.railway.app/complete',
+                url: 'http://localhost:3001/complete',
                 contentType: 'application/json',
                 data: JSON.stringify(completeData),
                 success: function(response) {
