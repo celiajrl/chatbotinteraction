@@ -103,7 +103,7 @@ app.get('/:activeId', async (req, res) => {
 
         // Copiar o mover archivos de la carpeta "files" al directorio de destino
         const filesDir = path.join(__dirname, 'files');
-        const destDir = 'decompressed';
+        const destDir = '/opt/render/.local/bin/rasa/decompressed';
         fs.readdirSync(filesDir).forEach(file => {
             fs.copyFileSync(path.join(filesDir, file), path.join(destDir, file));
         });
@@ -112,8 +112,7 @@ app.get('/:activeId', async (req, res) => {
         });
         console.log('Entrenando bot...');
         // Entrenar el modelo Rasa con el PATH configurado
-        exec('. ./venv/bin/activate && export PATH="$PATH:/opt/render/.local/bin" && cd decompressed && /opt/render/.local/bin/rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
-            if (rasaTrainError) {
+        exec('. ./venv/bin/activate && export PATH="$PATH:/opt/render/.local/bin" && cd /opt/render/project/src/decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {            if (rasaTrainError) {
                 console.error(`Error al entrenar el modelo Rasa: ${rasaTrainError.message}`);
                 return res.status(500).send('Error al entrenar el modelo Rasa');
             }
