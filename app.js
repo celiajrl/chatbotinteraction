@@ -73,6 +73,9 @@ app.get('/active/:activeId', async (req, res) => {
 });
 
 
+const { exec, spawn } = require('child_process');
+const path = require('path');
+
 app.get('/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
 
@@ -110,8 +113,8 @@ app.get('/:activeId', async (req, res) => {
             console.log(file);
         });
         console.log('Entrenando bot...');
-        // Entrenar el modelo Rasa
-        exec('. ./venv/bin/activate && cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
+        // Entrenar el modelo Rasa con el PATH configurado
+        exec('. ./venv/bin/activate && export PATH="$PATH:/opt/render/.local/bin" && cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
             if (rasaTrainError) {
                 console.error(`Error al entrenar el modelo Rasa: ${rasaTrainError.message}`);
                 return res.status(500).send('Error al entrenar el modelo Rasa');
@@ -147,6 +150,7 @@ app.get('/:activeId', async (req, res) => {
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 app.post('/submit-results', async (req, res) => {
     const { chatbotId, questionnaireId, sus, answers } = req.body;
