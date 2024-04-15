@@ -18,6 +18,9 @@ echo "Entorno virtual creado..."
 source ./venv/bin/activate
 echo "Entorno virtual activado..."
 
+pip install --upgrade pip
+echo "Pip actualizado en venv..."
+
 pip install rasa
 echo "Rasa instalado..."
 rasa --version
