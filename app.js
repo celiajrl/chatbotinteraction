@@ -53,38 +53,69 @@ app.get('/:activeId', async (req, res) => {
             return res.status(404).json({ message: 'Chatbot not found' });
         }
 
-	console.log("Descompresión del archivo ZIP:");
-        // Descomprimir el archivo ZIP
+        console.log("Descompresión del archivo ZIP:");
         const zipBuffer = Buffer.from(chatbot.zipFile, 'base64');
         const zip = new AdmZip(zipBuffer);
-        zip.extractAllTo('decompressed', true);
+        const extractPath = path.resolve(__dirname, `decompressed/${activeId}`);
+        zip.extractAllTo(extractPath, true);
 
-        // Copiar o mover archivos de la carpeta "files" al directorio de destino
+        console.log('Copiando archivos necesarios...');
         const filesDir = path.join(__dirname, 'files');
-        const destDir = 'decompressed';
         fs.readdirSync(filesDir).forEach(file => {
-            fs.copyFileSync(path.join(filesDir, file), path.join(destDir, file));
+            const sourceFile = path.join(filesDir, file);
+            const destFile = path.join(extractPath, file);
+            fs.copyFileSync(sourceFile, destFile);
+            console.log(`Archivo ${file} copiado a ${destFile}`);
         });
 
-        console.log('Ejecutando script de shell para configurar y entrenar Rasa...');
-        
+        console.log(`Directorio de extracción: ${extractPath}`);
+        console.log(`Directorio actual: ${process.cwd()}`);
 
-	const child = spawn('./setup_and_train.sh', [], { shell: true });
+        const configFile = path.join(extractPath, 'config.yml');
+        const dataDir = path.join(extractPath, 'data');
 
-	child.stdout.on('data', (data) => {
-	    console.log(`stdout: ${data}`);
-	});
+        if (!fs.existsSync(configFile)) {
+            console.error("Archivo config.yml no encontrado.");
+            return res.status(500).send("Archivo de configuración no encontrado.");
+        }
 
-	child.stderr.on('data', (data) => {
-	    console.error(`stderr: ${data}`);
-	});
+        if (!fs.existsSync(dataDir)) {
+            console.error("Directorio de datos no encontrado.");
+            return res.status(500).send("Directorio de datos no encontrado.");
+        }
 
-	child.on('close', (code) => {
-	    console.log(`child process exited with code ${code}`);
-	});
-	res.sendFile(path.join(__dirname, 'index.html'));
+        console.log('Iniciando entrenamiento de Rasa...');
+        const train = spawn('/app/venv/bin/rasa', ['train', '--config', configFile, '--data', dataDir], { cwd: extractPath });
 
+        train.stdout.on('data', (data) => {
+            console.log(`stdout (train): ${data.toString()}`);
+        });
 
+        train.stderr.on('data', (data) => {
+            console.error(`stderr (train): ${data.toString()}`);
+        });
+
+        train.on('close', (trainExitCode) => {
+            if (trainExitCode === 0) {
+                console.log('Rasa ha sido entrenado exitosamente.');
+                console.log('Iniciando servidor de Rasa...');
+                const run = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005'], { cwd: extractPath });
+
+		    run.stderr.on('data', (data) => {
+		        const output = data.toString();
+		        console.log(`stderr (run): ${output}`);
+		        if (output.includes("Rasa server is up and running")) {
+		            console.log('Rasa server is up and running.');
+		            res.sendFile(path.join(__dirname, 'index.html'));
+		        }
+		    });
+
+		    run.on('error', (error) => {
+		        console.error(`Failed to start Rasa server: ${error.message}`);
+		        res.status(500).send('Failed to start Rasa server.');
+		    });
+		    }
+		    });
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Internal Server Error' });
