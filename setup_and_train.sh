@@ -1,6 +1,15 @@
 #!/bin/bash
 
 echo "Iniciando el script..."
+
+# Actualizar paquetes y preparar entorno
+apt-get update
+apt-get install -y python3 python3-pip
+
+# Verificar instalación
+python3 --version
+pip3 --version
+
 python3 -m venv ./venv
 echo "Entorno virtual creado..."
 
