@@ -5,24 +5,21 @@ const fs = require('fs');
 const { ObjectId } = require('mongodb');
 const { connectToDb, getDb } = require('./db');
 const AdmZip = require('adm-zip');
-const { exec, spawn } = require('child_process'); 
+const { spawn } = require('child_process');
 
 
 const chatbotController = require('./controllers/chatbotController');
 const questionnaireController = require('./controllers/questionnaireController');
 
-
-
-// init app & middleware
+// Inicialización de la app y middleware
 const app = express();
-const PORT = process.env.PORT || 3001; 
+const PORT = process.env.PORT || 3000; 
 app.use(express.static(path.join(__dirname, 'src')));
 app.use(express.json());
 app.use(cors());
 
-// db connection
+// Conexión a la base de datos
 let db;
-let rasaProcess;
 
 connectToDb((err) => {  
     if (!err) {
@@ -30,6 +27,8 @@ connectToDb((err) => {
             console.log(`Servidor escuchando en el puerto ${PORT}`);
         });
         db = getDb();
+    } else {
+        console.error('Failed to connect to the database:', err);
     }
 });
 
@@ -37,6 +36,61 @@ connectToDb((err) => {
 app.get('/src/fillquestionnaire.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'src', 'fillquestionnaire.html'));
   });
+
+// Punto de entrada para activar y probar un chatbot específico
+app.get('/:activeId', async (req, res) => {
+    const activeId = req.params.activeId;
+
+    try {
+        const activeData = await db.collection('active').findOne({ _id: ObjectId(activeId) });
+        if (!activeData) {
+            return res.status(404).send('This link has already been used.');
+        }
+
+        const { chatbotId } = activeData;
+        const chatbot = await chatbotController.getChatbotById(chatbotId);
+        if (!chatbot) {
+            return res.status(404).json({ message: 'Chatbot not found' });
+        }
+
+	console.log("Descompresión del archivo ZIP:");
+        // Descomprimir el archivo ZIP
+        const zipBuffer = Buffer.from(chatbot.zipFile, 'base64');
+        const zip = new AdmZip(zipBuffer);
+        zip.extractAllTo('decompressed', true);
+
+        // Copiar o mover archivos de la carpeta "files" al directorio de destino
+        const filesDir = path.join(__dirname, 'files');
+        const destDir = 'decompressed';
+        fs.readdirSync(filesDir).forEach(file => {
+            fs.copyFileSync(path.join(filesDir, file), path.join(destDir, file));
+        });
+
+        console.log('Ejecutando script de shell para configurar y entrenar Rasa...');
+        
+
+	const child = spawn('./setup_and_train.sh', [], { shell: true });
+
+	child.stdout.on('data', (data) => {
+	    console.log(`stdout: ${data}`);
+	});
+
+	child.stderr.on('data', (data) => {
+	    console.error(`stderr: ${data}`);
+	});
+
+	child.on('close', (code) => {
+	    console.log(`child process exited with code ${code}`);
+	});
+	res.sendFile(path.join(__dirname, '../chatbotinteraction/index.html'));
+
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 // VIEW QUESTIONNAIRE
 app.get('/questionnaires/:questionnaireId', async (req, res) => {
@@ -74,80 +128,6 @@ app.get('/active/:activeId', async (req, res) => {
 });
 
 
-app.get('/:activeId', async (req, res) => {
-    const activeId = req.params.activeId;
-
-    try {
-        // Obtener los datos del documento 'active' asociado al ID proporcionado
-        const activeData = await db.collection('active').findOne({ _id: ObjectId(activeId) });
-        if (!activeData) {
-            return res.status(404).send('This link has already been used.');
-        }
-
-        const { userId, chatbotId, questionnaires, participantId } = activeData;
-
-        console.log(chatbotId);
-        const chatbot = await chatbotController.getChatbotById(chatbotId);
-        if (!chatbot) {
-            return res.status(404).json({ message: 'Chatbot not found' });
-        }
-
-        console.log(questionnaires);
-
-        exec('. ./venv/bin/activate && pip install -U rasa', async (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error al crear el entorno virtual / activarlo / instalar rasa: ${error.message}`);
-                return res.status(500).send('Error interno del servidor');
-            }
-        
-            console.log('Entorno virtual creado correctamente.');
-        
-            console.log("Descompresión del archivo ZIP:");
-            // Descomprimir el archivo ZIP
-            const zipBuffer = Buffer.from(chatbot.zipFile, 'base64');
-            const zip = new AdmZip(zipBuffer);
-            zip.extractAllTo('decompressed', true);
-        
-            // Entrenar el modelo Rasa
-            exec('cd decompressed && rasa train', async (rasaTrainError, rasaTrainStdout, rasaTrainStderr) => {
-                if (rasaTrainError) {
-                    console.error(`Error al entrenar el modelo Rasa: ${rasaTrainError.message}`);
-                    return res.status(500).send('Error al entrenar el modelo Rasa');
-                }
-        
-                console.log('Modelo Rasa entrenado correctamente.');
-        
-                // Ejecutar Rasa con la configuración deseada
-                rasaProcess = spawn('rasa', ['run', '--enable-api', '--cors', '*'], {
-                    cwd: path.join(__dirname, 'decompressed'),
-                    detached: true,
-                    stdio: ['ignore', 'pipe', 'pipe']
-                });
-        
-                rasaProcess.stdout.on('data', (data) => {
-                    console.log(`Rasa stdout: ${data}`);
-                });
-        
-                rasaProcess.stderr.on('data', (data) => {
-                    console.error(`Rasa stderr: ${data}`);
-                });
-        
-                rasaProcess.on('close', (code) => {
-                    console.log(`Rasa proceso hijo terminado con código de salida ${code}`);
-                });
-        
-                console.log('Chatbot ejecutado correctamente.');
-        
-                res.sendFile(path.join(__dirname, '../chatbotinteraction/index.html'));
-            });
-        });
-        
-        
-    } catch (error) {
-        console.error('Error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 
 
 app.post('/submit-results', async (req, res) => {
