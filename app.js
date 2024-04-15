@@ -82,7 +82,7 @@ app.get('/:activeId', async (req, res) => {
 	child.on('close', (code) => {
 	    console.log(`child process exited with code ${code}`);
 	});
-	res.sendFile(path.join(__dirname, '../chatbotinteraction/index.html'));
+	res.sendFile(path.join(__dirname, '../index.html'));
 
 
     } catch (error) {
