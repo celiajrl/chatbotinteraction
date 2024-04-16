@@ -41,7 +41,7 @@ app.get('/src/fillquestionnaire.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'src', 'fillquestionnaire.html'));
   });
 
-// Punto de entrada para activar y probar un chatbot específico
+// Punto de entrada para activar y probar un chatbot específico 
 app.get('/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
 
@@ -75,51 +75,26 @@ app.get('/:activeId', async (req, res) => {
         console.log(`Directorio de extracción: ${extractPath}`);
         console.log(`Directorio actual: ${process.cwd()}`);
 
-        const configFile = path.join(extractPath, 'config.yml');
-        const dataDir = path.join(extractPath, 'data');
+        console.log('Iniciando servidor de Rasa...');
+        const rasaRun = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005'], { cwd: extractPath });
 
-        if (!fs.existsSync(configFile)) {
-            console.error("Archivo config.yml no encontrado.");
-            return res.status(500).send("Archivo de configuración no encontrado.");
-        }
-
-        if (!fs.existsSync(dataDir)) {
-            console.error("Directorio de datos no encontrado.");
-            return res.status(500).send("Directorio de datos no encontrado.");
-        }
-
-        console.log('Iniciando entrenamiento de Rasa...');
-        const train = spawn('/app/venv/bin/rasa', ['train', '--config', configFile, '--data', dataDir], { cwd: extractPath });
-
-        train.stdout.on('data', (data) => {
-            console.log(`stdout (train): ${data.toString()}`);
+        rasaRun.stdout.on('data', (data) => {
+            console.log(`stdout (run): ${data.toString()}`);
         });
 
-        train.stderr.on('data', (data) => {
-            console.error(`stderr (train): ${data.toString()}`);
+        rasaRun.stderr.on('data', (data) => {
+            console.error(`stderr (run): ${data.toString()}`);
+            if (data.toString().includes("Rasa server is up and running")) {
+                console.log('Rasa server is up and running.');
+                res.sendFile(path.join(__dirname, 'index.html'));
+            }
         });
 
-        train.on('close', (trainExitCode) => {
-            if (trainExitCode === 0) {
-                console.log('Rasa ha sido entrenado exitosamente.');
-                console.log('Iniciando servidor de Rasa...');
-                const run = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005'], { cwd: extractPath });
+        rasaRun.on('error', (error) => {
+            console.error(`Failed to start Rasa server: ${error.message}`);
+            res.status(500).send('Failed to start Rasa server.');
+        });
 
-		    run.stderr.on('data', (data) => {
-		        const output = data.toString();
-		        console.log(`stderr (run): ${output}`);
-		        if (output.includes("Rasa server is up and running")) {
-		            console.log('Rasa server is up and running.');
-		            res.sendFile(path.join(__dirname, 'index.html'));
-		        }
-		    });
-
-		    run.on('error', (error) => {
-		        console.error(`Failed to start Rasa server: ${error.message}`);
-		        res.status(500).send('Failed to start Rasa server.');
-		    });
-		    }
-		    });
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Internal Server Error' });
