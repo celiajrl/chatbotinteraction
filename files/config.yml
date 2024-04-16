@@ -36,9 +36,9 @@ pipeline: null
 # Configuration for Rasa Core.
 # https://rasa.com/docs/rasa/core/policies/
 policies: 
-	- name: DIETClassifier
-  	  epochs: 50  # Reducido de 100 para acelerar el entrenamiento durante el desarrollo
-  	- name: TEDPolicy
+    - name: DIETClassifier
+      epochs: 50  # Reducido de 100 para acelerar el entrenamiento durante el desarrollo
+    - name: TEDPolicy
       epochs: 50  # Reducción para pruebas
 
 # # No configuration for policies was provided. The following default policies were used to train your model.
