@@ -25,6 +25,7 @@ RUN python -m venv ./venv && \
 
 # Exponer el puerto en el que Rasa y Node.js podrían correr
 EXPOSE 5005 $PORT
+echo $PORT
 
 # Copiar el resto del código fuente al contenedor
 COPY . .
