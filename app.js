@@ -42,61 +42,70 @@ app.get('/src/fillquestionnaire.html', (req, res) => {
   });
 
 // Punto de entrada para activar y probar un chatbot específico 
+// Punto de entrada para activar y probar un chatbot específico
 app.get('/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
 
     try {
+        console.log(`Fetching active data for ID: ${activeId}`);
         const activeData = await db.collection('active').findOne({ _id: ObjectId(activeId) });
         if (!activeData) {
+            console.log('Active data not found or link has been used.');
             return res.status(404).send('This link has already been used.');
         }
 
-        const { chatbotId } = activeData;
-        const chatbot = await chatbotController.getChatbotById(chatbotId);
+        console.log(`Fetching chatbot data for chatbot ID: ${activeData.chatbotId}`);
+        const chatbot = await chatbotController.getChatbotById(activeData.chatbotId);
         if (!chatbot) {
+            console.log('Chatbot data not found.');
             return res.status(404).json({ message: 'Chatbot not found' });
         }
 
-        console.log("Descompresión del archivo ZIP:");
-        const zipBuffer = Buffer.from(chatbot.zipFile, 'base64');
-        const zip = new AdmZip(zipBuffer);
-        const extractPath = path.resolve(__dirname, `decompressed/${activeId}`);
-        zip.extractAllTo(extractPath, true);
-
-        console.log('Copiando archivos necesarios...');
-        const filesDir = path.join(__dirname, 'files');
-        fs.readdirSync(filesDir).forEach(file => {
-            const sourceFile = path.join(filesDir, file);
-            const destFile = path.join(extractPath, file);
-            fs.copyFileSync(sourceFile, destFile);
-            console.log(`Archivo ${file} copiado a ${destFile}`);
-        });
-
-        console.log(`Directorio de extracción: ${extractPath}`);
-        console.log(`Directorio actual: ${process.cwd()}`);
-
-        console.log('Iniciando servidor de Rasa...');
-        const rasaRun = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005'], { cwd: extractPath });
-
-        rasaRun.stdout.on('data', (data) => {
-            console.log(`stdout (run): ${data.toString()}`);
-        });
-
-        rasaRun.stderr.on('data', (data) => {
-            console.error(`stderr (run): ${data.toString()}`);
-            if (data.toString().includes("Rasa server is up and running")) {
-                console.log('Rasa server is up and running.');
-                res.sendFile(path.join(__dirname, 'index.html'));
+        console.log(`Retrieving ZIP file from GridFS with ID: ${chatbot.zipFileId}`);
+        const { retrieveFileFromGridFS } = require('./db');
+        retrieveFileFromGridFS(chatbot.zipFileId, async (err, fileBuffer) => {
+            if (err) {
+                console.error('Error retrieving file from GridFS:', err);
+                return res.status(500).send('Failed to retrieve file from GridFS');
             }
-        });
 
-        rasaRun.on('error', (error) => {
-            console.error(`Failed to start Rasa server: ${error.message}`);
-            res.status(500).send('Failed to start Rasa server.');
-        });
+            console.log("File retrieved successfully. Starting to decompress the ZIP file.");
+            const zip = new AdmZip(fileBuffer);
+            const extractPath = path.resolve(__dirname, `decompressed/${activeId}`);
+            zip.extractAllTo(extractPath, true);
+            console.log(`File decompressed successfully to ${extractPath}`);
 
+            console.log('Starting to copy necessary files...');
+            const filesDir = path.join(__dirname, 'files');
+            fs.readdirSync(filesDir).forEach(file => {
+                const sourceFile = path.join(filesDir, file);
+                const destFile = path.join(extractPath, file);
+                fs.copyFileSync(sourceFile, destFile);
+                console.log(`File ${file} copied from ${sourceFile} to ${destFile}`);
+            });
+
+            console.log('All files copied. Initializing Rasa server...');
+            const rasaRun = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005'], { cwd: extractPath });
+
+            rasaRun.stdout.on('data', (data) => {
+                console.log(`Rasa Run STDOUT: ${data.toString()}`);
+            });
+
+            rasaRun.stderr.on('data', (data) => {
+                console.log(`Rasa Run STDERR: ${data.toString()}`);
+                if (data.toString().includes("Rasa server is up and running")) {
+                    console.log('Rasa server confirmed up and running.');
+                    res.sendFile(path.join(__dirname, 'index.html'));
+                }
+            });
+
+            rasaRun.on('error', (error) => {
+                console.error(`Error starting Rasa server: ${error.message}`);
+                res.status(500).send('Failed to start Rasa server.');
+            });
+        });
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Unhandled error:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
