@@ -11,13 +11,7 @@ module.exports = {
         }
 
         // Create a MongoClient with MongoClientOptions object to set the Stable API version
-        const client = new MongoClient(uri, {
-            serverApi: {
-                version: ServerApiVersion,
-                strict: true,
-                deprecationErrors: true,
-            }
-        });
+        const client = new MongoClient(uri);
 
         // Connect to MongoDB using the client
         client.connect()
