@@ -85,7 +85,15 @@ app.get('/:activeId', async (req, res) => {
             });
 
             console.log('All files copied. Initializing Rasa server...');
-            const rasaRun = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005'], { cwd: extractPath });
+            const spawnOptions = {
+                cwd: extractPath,
+                shell: true,
+                detached: true,
+                stdio: 'inherit',
+                env: process.env,
+                timeout: 1200000 // Establece un timeout más largo, por ejemplo 20 minutos
+            };
+            const rasaRun = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005'], spawnOptions);
 
             rasaRun.stdout.on('data', (data) => {
                 console.log(`Rasa Run STDOUT: ${data.toString()}`);
