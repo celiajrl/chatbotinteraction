@@ -16,7 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 3000; 
 app.use(express.static(path.join(__dirname, 'src')));
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: '*' }));
 
 // Conexión a la base de datos
 let db;
