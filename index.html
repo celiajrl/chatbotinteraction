@@ -53,7 +53,7 @@
         <p>Please take a few minutes to interact with the chatbot by clicking on the blue chat icon available at the bottom right of this screen.<br><p>Please take a few minutes to interact with the chatbot by clicking on the blue chat icon available at the bottom right of this screen.<br>To start the conversation type something like "Hey", "Hi"... and wait for the chatbot to answer, this might take a few seconds.<br>When you're ready, click the button below to access the associated questionnaires.<br>Thank you.</p>
     </div>
     <div style="clear: both;"></div>
-    <div id="rasa-chat-widget" data-websocket-url="https://chatbotinteraction.onrender.com/socket.io"></div>
+    <div id="rasa-chat-widget" data-websocket-url="https://interact-with-chatbot.up.railway.app/socket.io"></div>
     <button class="button" onclick="redirectToQuestionnaire()">Access questionnaires</button>
     <script src="https://unpkg.com/@rasahq/rasa-chat" type="application/javascript"></script>
     <script>
@@ -66,7 +66,7 @@
                 return;
             }
 
-            window.location.href = 'https://chatbotinteraction.onrender.com/src/fillquestionnaire.html?activeId=' + activeId;
+            window.location.href = 'https://interact-with-chatbot.up.railway.app/src/fillquestionnaire.html?activeId=' + activeId;
         }
     </script>
 </body>
