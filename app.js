@@ -13,10 +13,10 @@ const questionnaireController = require('./controllers/questionnaireController')
 
 // Inicialización de la app y middleware
 const app = express();
-const PORT = process.env.PORT || 3000; 
+const PORT = process.env.PORT || 80; 
 app.use(express.static(path.join(__dirname, 'src')));
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: '*' }));
 
 // Conexión a la base de datos
 let db;
@@ -86,7 +86,7 @@ app.get('/:activeId', async (req, res) => {
 
             console.log('All files copied. Initializing Rasa server...');
         
-            const rasaRun = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005'], {cwd: extractPath});
+            const rasaRun = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005', '-i', '0.0.0.0'], {cwd: extractPath});
 
             rasaRun.stdout.on('data', (data) => {
                 console.log(`Rasa Run STDOUT: ${data.toString()}`);
