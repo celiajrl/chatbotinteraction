@@ -86,7 +86,7 @@ app.get('/:activeId', async (req, res) => {
 
             console.log('All files copied. Initializing Rasa server...');
         
-            const rasaRun = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '5005', '-i', '0.0.0.0'], {cwd: extractPath});
+            const rasaRun = spawn('/app/venv/bin/rasa', ['run', '--enable-api', '--cors', '*', '--port', '443', '-i', '0.0.0.0'], {cwd: extractPath});
 
             rasaRun.stdout.on('data', (data) => {
                 console.log(`Rasa Run STDOUT: ${data.toString()}`);
