@@ -41,12 +41,13 @@ app.get('/src/fillquestionnaire.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'src', 'fillquestionnaire.html'));
   });
 
-// Punto de entrada para activar y probar un chatbot específico 
 // Punto de entrada para activar y probar un chatbot específico
 app.get('/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
 
     try {
+        res.sendFile(path.join(__dirname, 'loading.html')); 
+
         console.log(`Fetching active data for ID: ${activeId}`);
         const activeData = await db.collection('active').findOne({ _id: ObjectId(activeId) });
         if (!activeData) {
@@ -100,7 +101,7 @@ app.get('/:activeId', async (req, res) => {
                 console.log(`Rasa Run STDERR: ${data.toString()}`);
                 if (data.toString().includes("Rasa server is up and running")) {
                     console.log('Rasa server confirmed up and running.');
-                    res.sendFile(path.join(__dirname, 'index.html'));
+                    res.redirect('/index.html');
                 }
             });
 
