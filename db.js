@@ -7,7 +7,7 @@ let gridFsBucket;
 
 module.exports = {
     connectToDb: (cb) => {
-        const uri = process.env.MONGODB_URI;
+        const uri = "mongodb+srv://chatbotevaluator:2024_UAM_chatbot@evaluator.vvans3s.mongodb.net/evaluator?retryWrites=true&w=majority&appName=evaluator";
         if (!uri) {
             return cb(new Error('MongoDB URI not found in environment variables'));
         }
@@ -49,7 +49,7 @@ module.exports = {
             })
             .on('finish', () => {
                 console.log('File uploaded successfully to GridFS');
-                callback(null, uploadStream.id); // Return the file ID for further reference
+                callback(null, uploadStream.id); 
             });
     },
 

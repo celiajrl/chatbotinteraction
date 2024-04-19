@@ -24,8 +24,7 @@ RUN python -m venv ./venv && \
     pip install -r requirements.txt
 
 # Exponer el puerto en el que Rasa y Node.js podrían correr
-EXPOSE 443
-EXPOSE 80
+EXPOSE 5005 3000
 
 # Copiar el resto del código fuente al contenedor
 COPY . .
