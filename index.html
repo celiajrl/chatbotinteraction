@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -12,51 +11,67 @@
             color: #333;
             font-family: Arial, sans-serif;
         }
-
-        .container {
-            float: left;
+        .container, .button {
+            display: none; /* Oculta estos elementos inicialmente */
             width: 40%;
             padding: 20px;
             background-color: #87CEEB;
             border-radius: 10px;
         }
-
         h1 {
             font-size: 24px;
             font-weight: bold;
         }
-
         .button {
             background-color: #3788dd;
             color: white;
-            border: 1px solid white; 
+            border: none;
             padding: 10px 16px;
             cursor: pointer;
             border-radius: 5px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-
-        .button:hover {
-            background-color: #3788dd;
-            border-color: #7385e0; 
+        .spinner {
+            border: 16px solid #f3f3f3;
+            border-top: 16px solid #3498db;
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            animation: spin 2s linear infinite;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
-
-        .button:active {
-            background-color: #3788dd;
+        #loading-text {
+            position: fixed;
+            top: 65%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #3498db;
+            font-size: 18px;
+            display: block;
+        }
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
     </style>
 </head>
-
 <body>
+    <div class="spinner" id="spinner"></div>
+    <p id="loading-text">Wait for the page to load before initiating the chatbot.</p>
     <div class="container">
         <h1>Welcome to the chatbot test.</h1>
-        <p>Please take a few minutes to interact with the chatbot by clicking on the blue chat icon available at the bottom right of this screen.<br><p>Please take a few minutes to interact with the chatbot by clicking on the blue chat icon available at the bottom right of this screen.<br>To start the conversation type something like "Hey", "Hi"... and wait for the chatbot to answer, this might take a few seconds.<br>When you're ready, click the button below to access the associated questionnaires.<br>Thank you.</p>
+        <p>Please take a few minutes to interact with the chatbot by clicking on the blue chat icon available at the bottom right of this screen.<br>To start the conversation type something like "Hey", "Hi"... and wait for the chatbot to answer, this might take a few seconds.<br>When you're ready, click the button below to access the associated questionnaires.<br>Thank you.</p>
     </div>
-    <div style="clear: both;"></div>
-    <div id="rasa-chat-widget" data-websocket-url="http://localhost:5005/socket.io"></div>
     <button class="button" onclick="redirectToQuestionnaire()">Access questionnaires</button>
-    <script src="https://unpkg.com/@rasahq/rasa-chat" type="application/javascript"></script>
+    <div id="rasa-chat-widget" data-websocket-url="http://localhost:5005/socket.io"></div>
+    <script src="https://unpkg.com/@rasahq/rasa-chat" type="application/javascript"></script> 
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <script>
+        const socket = io('http://localhost:3000');
+
         function redirectToQuestionnaire() {
             const url = window.location.href;
             const activeId = url.split('/').pop();
@@ -68,7 +83,17 @@
 
             window.location.href = 'http://localhost:3000/src/fillquestionnaire.html?activeId=' + activeId;
         }
+
+        socket.on('rasaReady', function() {
+            const spinner = document.getElementById('spinner');
+            const loadingText = document.getElementById('loading-text');
+            const container = document.querySelector('.container');
+            const button = document.querySelector('.button');
+            spinner.style.display = 'none';
+            loadingText.style.display = 'none';
+            container.style.display = 'block';
+            button.style.display = 'block';
+        });
     </script>
 </body>
-
 </html>

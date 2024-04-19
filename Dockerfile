@@ -22,6 +22,12 @@ RUN python -m venv ./venv && \
     . ./venv/bin/activate && \
     pip install --upgrade pip && \
     pip install -r requirements.txt
+    
+# Instalar Socket.IO y otras dependencias de Node.js
+# Asegúrate de tener un archivo package.json en tu directorio de proyecto con socket.io listado como dependencia
+COPY package.json .
+RUN npm install
+
 
 # Exponer el puerto en el que Rasa y Node.js podrían correr
 EXPOSE 5005 3000

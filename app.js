@@ -6,24 +6,29 @@ const { ObjectId } = require('mongodb');
 const { connectToDb, getDb } = require('./db');
 const AdmZip = require('adm-zip');
 const { spawn } = require('child_process');
-
+const http = require('http');
+const { Server } = require("socket.io");
 
 const chatbotController = require('./controllers/chatbotController');
 const questionnaireController = require('./controllers/questionnaireController');
 
 // Inicialización de la app y middleware
 const app = express();
-const PORT = process.env.PORT || 3000; 
+const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, 'src')));
 app.use(express.json());
 app.use(cors({ origin: '*' }));
 
+const server = http.createServer(app);
+const io = new Server(server);
+
 // Conexión a la base de datos
 let db;
 
+
 connectToDb((err) => {  
     if (!err) {
-        app.listen(PORT, "0.0.0.0", function (){
+        server.listen(PORT, "0.0.0.0", function (){
             console.log(`Servidor escuchando en el puerto ${PORT}`);
         });
         db = getDb();
@@ -33,21 +38,19 @@ connectToDb((err) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
-
+    res.sendFile(__dirname + '/index.html');
+});
 
 app.get('/src/fillquestionnaire.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'src', 'fillquestionnaire.html'));
   });
 
 // Punto de entrada para activar y probar un chatbot específico
-app.get('/:activeId', async (req, res) => {
+app.get('/interact/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
 
     try {
-        res.sendFile(path.join(__dirname, 'loading.html')); 
-
+        res.sendFile(path.join(__dirname, 'index.html'));
         console.log(`Fetching active data for ID: ${activeId}`);
         const activeData = await db.collection('active').findOne({ _id: ObjectId(activeId) });
         if (!activeData) {
@@ -93,15 +96,14 @@ app.get('/:activeId', async (req, res) => {
                 console.log(`Rasa Run STDOUT: ${data.toString()}`);
                 if (data.toString().includes("Rasa server is up and running")) {
                     console.log('Rasa server confirmed up and running.');
-                    res.sendFile(path.join(__dirname, 'index.html'));
+                    io.emit('rasaReady'); // Emite el evento 'rasaReady' cuando Rasa esté listo
                 }
             });
-
             rasaRun.stderr.on('data', (data) => {
-                console.log(`Rasa Run STDERR: ${data.toString()}`);
+                console.error(`Rasa Run STDERR: ${data.toString()}`);
                 if (data.toString().includes("Rasa server is up and running")) {
                     console.log('Rasa server confirmed up and running.');
-                    res.redirect('/index.html');
+                    io.emit('rasaReady'); // Emite el evento 'rasaReady' cuando Rasa esté listo
                 }
             });
 
@@ -134,6 +136,8 @@ app.get('/questionnaires/:questionnaireId', async (req, res) => {
     }
 });
 
+
+
 // GET ACTIVE
 app.get('/active/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
@@ -151,8 +155,6 @@ app.get('/active/:activeId', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
 
 
 app.post('/submit-results', async (req, res) => {
