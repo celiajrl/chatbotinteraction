@@ -43,7 +43,7 @@ app.get('/src/fillquestionnaire.html', (req, res) => {
 
 // Punto de entrada para activar y probar un chatbot específico 
 // Punto de entrada para activar y probar un chatbot específico
-app.get('/:activeId', async (req, res) => {
+app.get('/interact/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
 
     try {
