@@ -12,7 +12,7 @@
             font-family: Arial, sans-serif;
         }
         .container, .button {
-            display: none; /* Oculta estos elementos inicialmente */
+            display: none; 
             width: 40%;
             padding: 20px;
             background-color: #87CEEB;
@@ -66,11 +66,11 @@
         <p>Please take a few minutes to interact with the chatbot by clicking on the blue chat icon available at the bottom right of this screen.<br>To start the conversation type something like "Hey", "Hi"... and wait for the chatbot to answer, this might take a few seconds.<br>When you're ready, click the button below to access the associated questionnaires.<br>Thank you.</p>
     </div>
     <button class="button" onclick="redirectToQuestionnaire()">Access questionnaires</button>
-    <div id="rasa-chat-widget" data-websocket-url="http://localhost:5005/socket.io"></div>
-    <script src="https://unpkg.com/@rasahq/rasa-chat" type="application/javascript"></script> 
+    <div id="rasa-chat-widget" data-websocket-url="https://rasainteraction.loca.lt/socket.io"></div>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://unpkg.com/@rasahq/rasa-chat" type="application/javascript"></script> 
     <script>
-        const socket = io('http://localhost:3000');
+        const socket = io('https://chatbotinteraction.loca.lt');
 
         function redirectToQuestionnaire() {
             const url = window.location.href;
@@ -81,7 +81,7 @@
                 return;
             }
 
-            window.location.href = 'http://localhost:3000/src/fillquestionnaire.html?activeId=' + activeId;
+            window.location.href = 'https://chatbotinteraction.loca.lt/src/fillquestionnaire.html?activeId=' + activeId;
         }
 
         socket.on('rasaReady', function() {
