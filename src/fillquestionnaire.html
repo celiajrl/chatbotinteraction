@@ -6,15 +6,28 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Questionnaire</title>
-     <style>
-        form {
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #container {
             background-color: #87CEEB;
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             color: #fff;
-            max-height: 300px;
+            max-height: 500px;
             overflow-y: auto;
+            text-align: center;
+        }
+
+        form {
+            margin-bottom: 20px;
         }
 
         .scale-options {
@@ -72,16 +85,18 @@
 </head>
 
 <body>
-    <header>
-        <div class="header-content">
-            <div class="header-content-inner">
-                <form id="formoptions">
-                    <table class="preconfigured-options" id="questionTableBody"></table>
-                </form>
+    <div id="container">
+        <header>
+            <div class="header-content">
+                <div class="header-content-inner">
+                    <form id="formoptions">
+                        <table class="preconfigured-options" id="questionTableBody"></table>
+                    </form>
+                </div>
+                <button type="button" class="btn btn-next btn-lg" onclick="goToNextQuestionnaire()">Next</button>
             </div>
-            <button type="button" class="btn btn-next btn-lg" onclick="goToNextQuestionnaire()">Next</button>
-        </div>
-    </header>
+        </header>
+    </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
@@ -100,7 +115,7 @@
         $(document).ready(function () {
             const urlParams = new URLSearchParams(window.location.search);
             activeId = urlParams.get('activeId');
-            $.get(`https://chatbotinteraction.loca.lt/active/${activeId}`, function(data) {
+            $.get(`http://localhost:3000/active/${activeId}`, function(data) {
                 const active = data;
                 if (active && active.questionnaires) {
                     questionnaireIds = active.questionnaires;
@@ -136,7 +151,8 @@
                 if (questionnaireIds.length > 0) {
                     loadNextQuestionnaire(); 
                 } else {
-                    console.log('All questionnaires completed');
+                    alert('You have completed all your questionnaires, thank you!');
+                    window.close();
                 }
             } else {
                 alert('Please answer all questions before proceeding.');
@@ -146,7 +162,7 @@
         function loadNextQuestionnaire() {
             questionnaireId = questionnaireIds[0];
             console.log('quest id'+questionnaireId);
-            $.get(`https://chatbotinteraction.loca.lt/questionnaires/${questionnaireId}`, function(data) {
+            $.get(`http://localhost:3000/questionnaires/${questionnaireId}`, function(data) {
                 const questionnaire = data;
                 type = questionnaire.type;
                 if (questionnaire && questionnaire.questions) {
@@ -214,15 +230,14 @@
                 switch (question.type.toLowerCase()) {
                     case 'scale':
                         const scaleOptions = $('<div>').addClass('scale-options');
-
                         for (let i = 1; i <= 5; i++) {
-                            const scaleCircle = $('<div>').addClass('scale-circle').text(i);
+                            const scaleCircle = $('<div>').addClass('scale-circle').text(i).attr('data-value', i);
                             scaleCircle.click(function () {
-                                selectScaleValue(questionNumber, i, answerInputCell); 
+                                selectScaleValue(questionNumber, i, scaleOptions); 
                             });
                             scaleOptions.append(scaleCircle);
                         }
-
+                    
                         answerInputCell.append(scaleOptions);
                         break;
                     case 'yesno':
@@ -314,7 +329,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: 'https://chatbotinteraction.loca.lt/submit-results',
+                url: 'http://localhost:3000/submit-results',
                 contentType: 'application/json',
                 data: JSON.stringify(requestData),
                 success: function(response) {
@@ -342,7 +357,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: 'https://chatbotinteraction.loca.lt/complete',
+                url: 'http://localhost:3000/complete',
                 contentType: 'application/json',
                 data: JSON.stringify(completeData),
                 success: function(response) {

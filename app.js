@@ -19,6 +19,7 @@ app.use(express.static(path.join(__dirname, 'src')));
 app.use(express.json());
 app.use(cors({ origin: '*' }));
 
+
 const server = http.createServer(app);
 const io = new Server(server);
 
@@ -50,14 +51,15 @@ app.get('/interact/:activeId', async (req, res) => {
     const activeId = req.params.activeId;
 
     try {
-        res.sendFile(path.join(__dirname, 'index.html'));
+        
         console.log(`Fetching active data for ID: ${activeId}`);
         const activeData = await db.collection('active').findOne({ _id: ObjectId(activeId) });
         if (!activeData) {
             console.log('Active data not found or link has been used.');
             return res.status(404).send('This link has already been used.');
-        }
+        }        
 
+        res.sendFile(path.join(__dirname, 'index.html'));
         console.log(`Fetching chatbot data for chatbot ID: ${activeData.chatbotId}`);
         const chatbot = await chatbotController.getChatbotById(activeData.chatbotId);
         if (!chatbot) {
