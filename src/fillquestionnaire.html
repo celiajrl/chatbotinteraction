@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -24,6 +23,7 @@
             max-height: 500px;
             overflow-y: auto;
             text-align: center;
+            position: relative;
         }
 
         form {
@@ -49,8 +49,8 @@
         }
 
         .scale-circle.selected {
-            background-color: #333; /* Color oscuro */
-            color: #fff; /* Texto blanco */
+            background-color: #333; /* Dark color for selected */
+            color: #fff; /* White text for selected */
         }
 
         .question-cell {
@@ -74,16 +74,45 @@
         }
 
         .answer-cell {
-            padding-bottom: 20px; /* Espacio entre filas */
+            padding-bottom: 20px; /* Space between rows */
         }
 
-        .text-input {
-            width: 200px; /* Ancho del campo de texto */
-            max-width: 100%; /* Ancho máximo igual al del contenedor */
+        .text-input, .multiselect-container {
+            width: 200px; /* Width of text and multiselect fields */
+            max-width: 100%; /* Maximum width the same as container */
+        }
+
+        .multiselect-container {
+            display: none;
+            position: absolute;
+            background-color: #FFF;
+            border: 1px solid #CCC;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 5;
+            width: 220px; /* Adjust width as per your design */
+            padding: 10px;
+            margin-top: 5px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .multiselect-display {
+            background-color: #FFF;
+            color: #000;
+            padding: 5px 10px;
+            border: 1px solid #CCC;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        #questionnaireCounter {
+            position: absolute;
+            bottom: 10px;
+            right: 20px;
+            color: #FFF;
         }
     </style>
 </head>
-
 <body>
     <div id="container">
         <header>
@@ -93,18 +122,20 @@
                         <table class="preconfigured-options" id="questionTableBody"></table>
                     </form>
                 </div>
+                <div id="questionnaireCounter">1/1</div>
                 <button type="button" class="btn btn-next btn-lg" onclick="goToNextQuestionnaire()">Next</button>
             </div>
         </header>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
     <script>
         let responses = {};
         let totalQuestions = 0;
         let questionnaireIds = [];
+        let questionnaireNames = [];
         let questionnaireId;
+        let currentQuestionnaireName = "";
         let sus = {};
         let chatbotId;
         let userId;
@@ -117,16 +148,18 @@
             activeId = urlParams.get('activeId');
             $.get(`http://localhost:3000/active/${activeId}`, function(data) {
                 const active = data;
-                if (active && active.questionnaires) {
+                if (active && active.questionnaires && active.questionnairesName) {
                     questionnaireIds = active.questionnaires;
-                    console.log(questionnaireIds);
+                    questionnaireNames = active.questionnairesName;
                     userId = active.userId;
                     participantId = active.participantId;
                     chatbotId = active.chatbotId;
+                    console.log(active);
+                    console.log('load next quest');
                     loadNextQuestionnaire();
                 }
             }).fail(function(xhr, status, error) {
-                console.error("Error al obtener datos del servidor:", error);
+                console.error("Error obtaining data from server:", error);
                 alert("This link has already been used.");
             });
         });
@@ -137,19 +170,19 @@
                 if (type === "preconfigured") {
                     const susValue = calculateSUS(); 
                     sus[questionnaireId] = susValue; 
-                    console.log(responses);
                     sendResultsToServer(responses, susValue, questionnaireId);
-                } else if (type === "custom"){
-                    console.log(responses);
-                    susValue = -1;
+                } else if (type === "custom") {
+                    const susValue = -1;
                     sendResultsToServer(responses, susValue, questionnaireId);
                 }
                 responses = {};
                 totalQuestions = 0;
-                questionnaireIds.shift(); 
+                questionnaireIds.shift();
+                questionnaireNames.shift();
+                updateQuestionnaireCounter();
 
                 if (questionnaireIds.length > 0) {
-                    loadNextQuestionnaire(); 
+                    loadNextQuestionnaire();
                 } else {
                     alert('You have completed all your questionnaires, thank you!');
                     window.close();
@@ -160,23 +193,37 @@
         }
 
         function loadNextQuestionnaire() {
-            questionnaireId = questionnaireIds[0];
-            console.log('quest id'+questionnaireId);
-            $.get(`http://localhost:3000/questionnaires/${questionnaireId}`, function(data) {
-                const questionnaire = data;
-                type = questionnaire.type;
-                if (questionnaire && questionnaire.questions) {
-                    if (type === 'preconfigured') {
-                        totalQuestions = questionnaire.questions.length * 2;
-                        displayPreconfiguredQuestions(questionnaire.questions);
-                    } else if (type === 'custom') {
-                        totalQuestions = questionnaire.questions.length;
-                        displayCustomQuestions(questionnaire.questions);
-                    } else {
-                        console.error('Unknown questionnaire type:', questionnaire.type);
+            if (questionnaireIds.length > 0) {
+                questionnaireId = questionnaireIds[0];
+                console.log(questionnaireId);
+                currentQuestionnaireName = questionnaireNames[0];
+                console.log(currentQuestionnaireName);
+                updateQuestionnaireCounter();
+                $.get(`http://localhost:3000/questionnaires/${questionnaireId}`, function(data) {
+                    const questionnaire = data;
+                    type = questionnaire.type;
+                    console.log(questionnaire);
+                    if (questionnaire && questionnaire.questions) {
+                        if (type === 'preconfigured') {
+                            totalQuestions = questionnaire.questions.length * 2;
+                            displayPreconfiguredQuestions(questionnaire.questions);
+                        } else if (type === 'custom') {
+                            totalQuestions = questionnaire.questions.length;
+                            displayCustomQuestions(questionnaire.questions);
+                        } else {
+                            console.error('Unknown questionnaire type:', questionnaire.type);
+                        }
                     }
-                }
-            });
+                });
+            }
+        }
+
+        function updateQuestionnaireCounter() {
+            const currentIndex = questionnaireIds.length - questionnaireIds.indexOf(questionnaireId);
+            const total = questionnaireIds.length;
+            console.log('total quests= '+total);
+            console.log('current '+currentIndex);
+            $('#questionnaireCounter').text(currentIndex + '/' + total);
         }
 
         function displayPreconfiguredQuestions(questions) {
@@ -224,20 +271,20 @@
             questions.forEach(function (question, index) {
                 const questionNumber = index + 1;
                 const row = $('<tr>');
-                const questionCell = $('<td>').addClass('question-cell').text((index + 1) + '. ' + question.question);
+                const questionCell = $('<td>').addClass('question-cell').text(questionNumber + '. ' + question.question);
                 const answerInputCell = $('<td>').addClass('answer-cell'); 
 
                 switch (question.type.toLowerCase()) {
                     case 'scale':
                         const scaleOptions = $('<div>').addClass('scale-options');
-                        for (let i = 1; i <= 5; i++) {
+                        const maxScaleValue = question.numberOfScaleCircles || 5; // Default value if not specified
+                        for (let i = 1; i <= maxScaleValue; i++) {
                             const scaleCircle = $('<div>').addClass('scale-circle').text(i).attr('data-value', i);
                             scaleCircle.click(function () {
                                 selectScaleValue(questionNumber, i, scaleOptions); 
                             });
                             scaleOptions.append(scaleCircle);
                         }
-                    
                         answerInputCell.append(scaleOptions);
                         break;
                     case 'yesno':
@@ -245,16 +292,10 @@
                         const noRadio = $('<input>').attr({ type: 'radio', name: 'answer' + questionNumber, value: 'No' });
 
                         yesRadio.change(function () {
-                            console.log('llego a yes');
                             responses[questionNumber] = $(this).val();
-                            console.log(responses[questionNumber]);
-                            console.log(responses);
                         });
                         noRadio.change(function () {
-                            console.log('llego a no');
                             responses[questionNumber] = $(this).val();
-                            console.log(responses[questionNumber]);
-                            console.log(responses);
                         });
 
                         answerInputCell.append(yesRadio, ' Yes ', noRadio, ' No');
@@ -263,29 +304,60 @@
                         const textInput = $('<input>').attr({ type: 'text', class: 'form-control text-input', id: 'answer' + questionNumber, placeholder: 'Enter answer' });
 
                         textInput.change(function () {
-                            console.log('textoo');
                             responses[questionNumber] = $(this).val();
-                            console.log(responses[questionNumber]);
-                            console.log(responses);
                         });
 
                         answerInputCell.append(textInput);
                         break;
+                    case 'number':
+                        const numberInput = $('<input>').attr({ type: 'number', class: 'form-control number-input', id: 'answer' + questionNumber, placeholder: 'Enter number' });
+
+                        numberInput.change(function () {
+                            responses[questionNumber] = $(this).val();
+                        });
+
+                        answerInputCell.append(numberInput);
+                        break;
                     case 'list':
-                        const selectInput = $('<select>').addClass('form-control').attr({ id: 'answer' + questionNumber }).css('width', '150px');
-                        selectInput.append($('<option>', { value: '', text: 'Select option...' })); // Opción predeterminada
+                        const selectInput = $('<select>').addClass('form-control').attr({ id: 'answer' + questionNumber });
+                        selectInput.append($('<option>', { value: '', text: 'Select option...' }));
+
                         question.answerOptions.forEach(function(option) {
                             selectInput.append($('<option>', { value: option, text: option }));
                         });
+
                         selectInput.change(function() {
                             responses[questionNumber] = $(this).val();
-                            console.log(responses[questionNumber]);
-                            console.log(responses);
                         });
+
                         answerInputCell.append(selectInput);
                         break;
-                    default:
-                        answerInputCell.text('Unknown Type');
+                    case 'multiselect':
+                        const multiSelectDisplay = $('<div>').addClass('multiselect-display').text('Select Options').click(function() {
+                            $(this).next().toggle(); // Toggle visibility of select
+                        });
+                        const multiSelectInput = $('<select>').addClass('form-control multiselect-container').attr({
+                            id: 'answer' + questionNumber,
+                            multiple: 'multiple'
+                        });
+
+                        question.answerOptions.forEach(function(option) {
+                            multiSelectInput.append($('<option>', {
+                                value: option,
+                                text: option
+                            }));
+                        });
+
+                        multiSelectInput.change(function() {
+                            let selectedOptions = $(this).find('option:selected');
+                            let selectedValues = [];
+                            selectedOptions.each(function() {
+                                selectedValues.push($(this).val());
+                            });
+                            responses[questionNumber] = selectedValues;
+                        });
+
+                        answerInputCell.append(multiSelectDisplay, multiSelectInput);
                         break;
                 }
 
@@ -294,38 +366,32 @@
             });
         }
 
-
-
         function selectScaleValue(questionNumber, value, scaleOptionsCell) {
             scaleOptionsCell.find('.scale-circle').removeClass('selected');
             scaleOptionsCell.find(`.scale-circle[data-value="${value}"]`).addClass('selected');
-            responses[questionNumber] = value-1;
-            console.log(responses[questionNumber]);
+            responses[questionNumber] = value;
         }
 
         function calculateSUS() {
             let sum = 0;
             for (const key in responses) {
-                if (responses.hasOwnProperty(key)) {
-                    if (key % 2 === 0) {
-                        responses[key] = 5 - responses[key];
-                    } else {
-                        responses[key]--;
-                    }
-                    sum += responses[key];
-                }
+                let adjustedValue = (key % 2 === 0) ? 5 - responses[key] : responses[key] - 1;
+                sum += adjustedValue;
             }
-            const susValue = sum * 2.5;
-            return susValue;
+            return sum * 2.5; // Multiply sum by 2.5 to get SUS score
         }
 
         function sendResultsToServer(answers, susValue, questionnaireId) {
+            console.log('mando al server ');
             const requestData = {
+                userId: userId,
                 chatbotId: chatbotId,
+                participantId: participantId,
                 questionnaireId: questionnaireId,
                 sus: susValue,
                 answers: answers
             };
+            console.log(requestData);
 
             $.ajax({
                 type: 'POST',
@@ -334,8 +400,7 @@
                 data: JSON.stringify(requestData),
                 success: function(response) {
                     console.log('Results submitted successfully:', response);
-                    console.log(response); 
-                    createCompleteObject(questionnaireId, response); 
+                    createCompleteObject(questionnaireId, currentQuestionnaireName, response._id);
                 },
                 error: function(xhr, status, error) {
                     console.error('Error submitting results:', error);
@@ -343,17 +408,20 @@
             });
         }
 
-        function createCompleteObject(questionnaireId, resultId) {
-            const currentDate = new Date();
+        function createCompleteObject(questionnaireId, questionnaireName, resultId) {
+            console.log('creo complete');
             const completeData = {
                 userId: userId,
                 participantId: participantId,
-                date: currentDate,
-                questionnaireId: questionnaireId,
                 chatbotId: chatbotId,
+                questionnaireId: questionnaireId,
+                questionnaireName: questionnaireName, // Now including questionnaire name here
                 resultId: resultId,
+                date: new Date().toISOString(),
                 activeId: activeId
             };
+
+            console.log(completeData);
 
             $.ajax({
                 type: 'POST',
@@ -370,5 +438,4 @@
         }
     </script>
 </body>
-
 </html>

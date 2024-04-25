@@ -177,14 +177,20 @@ app.post('/submit-results', async (req, res) => {
 });
 
 app.post('/complete', async (req, res) => {
-    const { userId, participantId, date, questionnaireId, chatbotId, resultId, activeId } = req.body;
+    const { userId, participantId, date, questionnaireId, questionnaireName, chatbotId, resultId, activeId } = req.body;
 
     try {
         const result = await db.collection('active').findOneAndUpdate(
             { _id: ObjectId(activeId) },
-            { $pull: { questionnaires: ObjectId(questionnaireId) } }, 
-            { returnOriginal: false } 
+            { 
+                $pull: { 
+                    questionnaires: { $in: [ObjectId(questionnaireId)] },
+                    questionnairesName: questionnaireName
+                } 
+            },
+            { returnOriginal: false }
         );
+        
 
         if (!result.value.questionnaires.length) {
             await db.collection('active').findOneAndDelete({ _id: ObjectId(activeId) });
