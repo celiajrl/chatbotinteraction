@@ -160,7 +160,7 @@ app.get('/active/:activeId', async (req, res) => {
 
 
 app.post('/submit-results', async (req, res) => {
-    const { chatbotId, questionnaireId, sus, answers } = req.body;
+    const { chatbotId, participantId, questionnaireId, sus, answers } = req.body;
 
     try {
 
@@ -184,17 +184,15 @@ app.post('/complete', async (req, res) => {
             { _id: ObjectId(activeId) },
             { 
                 $pull: { 
-                    questionnaires: { $in: [ObjectId(questionnaireId)] },
-                    questionnairesName: questionnaireName
+                    questionnaires: { $in: [ObjectId(questionnaireId)] }
                 } 
-            },
-            { returnOriginal: false }
+            }
         );
-        
 
-        if (!result.value.questionnaires.length) {
-            await db.collection('active').findOneAndDelete({ _id: ObjectId(activeId) });
+        if (result.value && (!result.value.questionnaires || result.value.questionnaires.length === 0)) {
+            await db.collection('active').deleteOne({ _id: ObjectId(activeId) });
         }
+        
 
         const completeData = {
             userId: userId,

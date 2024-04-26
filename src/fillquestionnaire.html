@@ -133,7 +133,7 @@
         let responses = {};
         let totalQuestions = 0;
         let questionnaireIds = [];
-        let questionnaireNames = [];
+        let questionnaireNames = {}; 
         let questionnaireId;
         let currentQuestionnaireName = "";
         let sus = {};
@@ -142,7 +142,9 @@
         let participantId;
         let activeId;
         let type;
-
+        let nquestionnaires;
+        let counter;
+    
         $(document).ready(function () {
             const urlParams = new URLSearchParams(window.location.search);
             activeId = urlParams.get('activeId');
@@ -150,12 +152,12 @@
                 const active = data;
                 if (active && active.questionnaires && active.questionnairesName) {
                     questionnaireIds = active.questionnaires;
+                    nquestionnaires = questionnaireIds.length;
                     questionnaireNames = active.questionnairesName;
                     userId = active.userId;
                     participantId = active.participantId;
                     chatbotId = active.chatbotId;
-                    console.log(active);
-                    console.log('load next quest');
+                    counter = 0;
                     loadNextQuestionnaire();
                 }
             }).fail(function(xhr, status, error) {
@@ -163,22 +165,21 @@
                 alert("This link has already been used.");
             });
         });
+        
 
-        function goToNextQuestionnaire() {
+        async function goToNextQuestionnaire() {
             const answers = Object.values(responses).length;
             if (totalQuestions === answers) {
                 if (type === "preconfigured") {
                     const susValue = calculateSUS(); 
-                    sus[questionnaireId] = susValue; 
-                    sendResultsToServer(responses, susValue, questionnaireId);
+                    await sendResultsToServer(responses, susValue, questionnaireId);
                 } else if (type === "custom") {
                     const susValue = -1;
-                    sendResultsToServer(responses, susValue, questionnaireId);
+                    await sendResultsToServer(responses, susValue, questionnaireId);
                 }
                 responses = {};
                 totalQuestions = 0;
                 questionnaireIds.shift();
-                questionnaireNames.shift();
                 updateQuestionnaireCounter();
 
                 if (questionnaireIds.length > 0) {
@@ -192,17 +193,16 @@
             }
         }
 
+
         function loadNextQuestionnaire() {
             if (questionnaireIds.length > 0) {
+                counter += 1;
                 questionnaireId = questionnaireIds[0];
-                console.log(questionnaireId);
-                currentQuestionnaireName = questionnaireNames[0];
-                console.log(currentQuestionnaireName);
+                currentQuestionnaireName = questionnaireNames[questionnaireId]; 
                 updateQuestionnaireCounter();
                 $.get(`http://localhost:3000/questionnaires/${questionnaireId}`, function(data) {
                     const questionnaire = data;
                     type = questionnaire.type;
-                    console.log(questionnaire);
                     if (questionnaire && questionnaire.questions) {
                         if (type === 'preconfigured') {
                             totalQuestions = questionnaire.questions.length * 2;
@@ -210,8 +210,6 @@
                         } else if (type === 'custom') {
                             totalQuestions = questionnaire.questions.length;
                             displayCustomQuestions(questionnaire.questions);
-                        } else {
-                            console.error('Unknown questionnaire type:', questionnaire.type);
                         }
                     }
                 });
@@ -219,11 +217,7 @@
         }
 
         function updateQuestionnaireCounter() {
-            const currentIndex = questionnaireIds.length - questionnaireIds.indexOf(questionnaireId);
-            const total = questionnaireIds.length;
-            console.log('total quests= '+total);
-            console.log('current '+currentIndex);
-            $('#questionnaireCounter').text(currentIndex + '/' + total);
+            $('#questionnaireCounter').text(counter + '/' + nquestionnaires);
         }
 
         function displayPreconfiguredQuestions(questions) {
@@ -400,7 +394,7 @@
                 data: JSON.stringify(requestData),
                 success: function(response) {
                     console.log('Results submitted successfully:', response);
-                    createCompleteObject(questionnaireId, currentQuestionnaireName, response._id);
+                    createCompleteObject(questionnaireId, currentQuestionnaireName, response);
                 },
                 error: function(xhr, status, error) {
                     console.error('Error submitting results:', error);
@@ -410,14 +404,17 @@
 
         function createCompleteObject(questionnaireId, questionnaireName, resultId) {
             console.log('creo complete');
+            const localDate = new Date().toLocaleString('es-ES', {
+                                timeZone: 'Europe/Madrid'  
+                            });
             const completeData = {
                 userId: userId,
                 participantId: participantId,
                 chatbotId: chatbotId,
                 questionnaireId: questionnaireId,
-                questionnaireName: questionnaireName, // Now including questionnaire name here
+                questionnaireName: questionnaireName, 
                 resultId: resultId,
-                date: new Date().toISOString(),
+                date: localDate,
                 activeId: activeId
             };
 
