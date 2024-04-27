@@ -62,9 +62,7 @@
     <div class="spinner" id="spinner"></div>
     <p id="loading-text">Wait for the page to load before initiating the chatbot.</p>
     <div class="container">
-        <h1>Welcome to the chatbot test.</h1>
-        <p>Please take a few minutes to interact with the chatbot by clicking on the blue chat icon available at the bottom right of this screen.<br>To start the conversation type something like "Hey", "Hi"... and wait for the chatbot to answer, this might take a few seconds.<br>When you're ready, click the button below to access the associated questionnaires.<br>Thank you.</p>
-    </div>
+    </div>    
     <button class="button" onclick="redirectToQuestionnaire()">Access questionnaires</button>
     <div id="rasa-chat-widget" data-websocket-url="http://localhost:5005/socket.io"></div>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
@@ -73,9 +71,12 @@
     <script>
         const url = window.location.href;
         const activeId = url.split('/').pop();
+        let chatbotMessage;
 
         $.get(`http://localhost:3000/active/${activeId}`, function(data) {
-                }).fail(function(xhr, status, error) {
+                chatbotMessage = data.chatbotMessage;
+                $('.container').html(`<h1>Welcome to the chatbot test.</h1><p>${chatbotMessage}</p>`);
+            }).fail(function(xhr, status, error) {
                 if (xhr.status === 404) {
                     alert("This link has already been used.");
                 } else {

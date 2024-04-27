@@ -111,6 +111,24 @@
             right: 20px;
             color: #FFF;
         }
+
+        .required-asterisk {
+            color: red;
+            margin-left: 5px;
+            cursor: help;
+        }
+
+        .required-asterisk:hover::after {
+            content: "Answer is compulsory";
+            color: #fff;
+            background-color: #333;
+            padding: 3px 6px;
+            border-radius: 4px;
+            position: absolute;
+            z-index: 1;
+            right: 20px;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -144,6 +162,7 @@
         let type;
         let nquestionnaires;
         let counter;
+        let questionnaireOrder;
     
         $(document).ready(function () {
             const urlParams = new URLSearchParams(window.location.search);
@@ -157,6 +176,7 @@
                     userId = active.userId;
                     participantId = active.participantId;
                     chatbotId = active.chatbotId;
+                    questionnaireOrder = active.order.sort((a, b) => a.order - b.order);
                     counter = 0;
                     loadNextQuestionnaire();
                 }
@@ -169,20 +189,33 @@
 
         async function goToNextQuestionnaire() {
             const answers = Object.values(responses).length;
-            if (totalQuestions === answers) {
+            // Aquí se calcula si todas las respuestas para preconfigured están presentes
+            const allPreconfiguredAnswered = type === "preconfigured" && answers === totalQuestions;
+            let allCustomRequiredAnswered = false;
+            
+            if (type === "custom") {
+                allCustomRequiredAnswered = areAllRequiredQuestionsAnswered();
+            }
+
+            let response;
+
+            if (allPreconfiguredAnswered || allCustomRequiredAnswered) {
                 if (type === "preconfigured") {
                     const susValue = calculateSUS(); 
-                    await sendResultsToServer(responses, susValue, questionnaireId);
+                    response = await sendResultsToServer(responses, susValue, questionnaireId);
                 } else if (type === "custom") {
                     const susValue = -1;
-                    await sendResultsToServer(responses, susValue, questionnaireId);
+                    response = await sendResultsToServer(responses, susValue, questionnaireId);
                 }
+
+                if (response) {
+                    await createCompleteObject(questionnaireId, currentQuestionnaireName, response);
+                }
+           
                 responses = {};
                 totalQuestions = 0;
-                questionnaireIds.shift();
-                updateQuestionnaireCounter();
 
-                if (questionnaireIds.length > 0) {
+                if (nquestionnaires > counter) {
                     loadNextQuestionnaire();
                 } else {
                     alert('You have completed all your questionnaires, thank you!');
@@ -193,12 +226,34 @@
             }
         }
 
+        function areAllRequiredQuestionsAnswered() {
+            let allAnswered = true;
+            const questions = $('#questionTableBody').find('tr').each(function () {
+                const $row = $(this);
+                const questionNumber = $row.index() + 1;
+                const isRequired = $row.find('.required-asterisk').length > 0;
+                if (isRequired) {
+                    // Si la pregunta es obligatoria, verifica si hay una respuesta.
+                    // Nota: Asegúrate de que cada elemento de entrada tenga un 'id' que coincida con este formato.
+                    const response = responses[questionNumber];
+                    if (response === undefined || response === '' || (Array.isArray(response) && response.length === 0)) {
+                        allAnswered = false;
+                        // Salir del ciclo each si se encuentra una pregunta obligatoria sin respuesta.
+                        return false;
+                    }
+                }
+            });
+            return allAnswered;
+        }
+
+
 
         function loadNextQuestionnaire() {
             if (questionnaireIds.length > 0) {
-                counter += 1;
-                questionnaireId = questionnaireIds[0];
+                const nextQuestionnaire = questionnaireOrder[counter];
+                questionnaireId = nextQuestionnaire.questionnaireId;
                 currentQuestionnaireName = questionnaireNames[questionnaireId]; 
+                counter += 1;
                 updateQuestionnaireCounter();
                 $.get(`http://localhost:3000/questionnaires/${questionnaireId}`, function(data) {
                     const questionnaire = data;
@@ -215,6 +270,8 @@
                 });
             }
         }
+
+        
 
         function updateQuestionnaireCounter() {
             $('#questionnaireCounter').text(counter + '/' + nquestionnaires);
@@ -265,8 +322,10 @@
             questions.forEach(function (question, index) {
                 const questionNumber = index + 1;
                 const row = $('<tr>');
-                const questionCell = $('<td>').addClass('question-cell').text(questionNumber + '. ' + question.question);
+                const questionText = `${index + 1}. ${question.question}${question.isRequired ? '<span class="required-asterisk">*</span>' : ''}`;
+                const questionCell = $('<td>').addClass('question-cell').html(questionText);
                 const answerInputCell = $('<td>').addClass('answer-cell'); 
+
 
                 switch (question.type.toLowerCase()) {
                     case 'scale':
@@ -376,29 +435,33 @@
         }
 
         function sendResultsToServer(answers, susValue, questionnaireId) {
-            console.log('mando al server ');
-            const requestData = {
-                userId: userId,
-                chatbotId: chatbotId,
-                participantId: participantId,
-                questionnaireId: questionnaireId,
-                sus: susValue,
-                answers: answers
-            };
-            console.log(requestData);
+            // Devolver una promesa desde la función
+            return new Promise((resolve, reject) => {
+                console.log('mando al server ');
+                const requestData = {
+                    userId: userId,
+                    chatbotId: chatbotId,
+                    participantId: participantId,
+                    questionnaireId: questionnaireId,
+                    sus: susValue,
+                    answers: answers
+                };
+                console.log(requestData);
 
-            $.ajax({
-                type: 'POST',
-                url: 'http://localhost:3000/submit-results',
-                contentType: 'application/json',
-                data: JSON.stringify(requestData),
-                success: function(response) {
-                    console.log('Results submitted successfully:', response);
-                    createCompleteObject(questionnaireId, currentQuestionnaireName, response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error submitting results:', error);
-                }
+                $.ajax({
+                    type: 'POST',
+                    url: 'http://localhost:3000/submit-results',
+                    contentType: 'application/json',
+                    data: JSON.stringify(requestData),
+                    success: function(response) {
+                        console.log('Results submitted successfully:', response);
+                        resolve(response); // Resuelve la promesa con la respuesta
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error submitting results:', error);
+                        reject(error); // Rechaza la promesa con el error
+                    }
+                });
             });
         }
 

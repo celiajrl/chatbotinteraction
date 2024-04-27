@@ -180,16 +180,30 @@ app.post('/complete', async (req, res) => {
     const { userId, participantId, date, questionnaireId, questionnaireName, chatbotId, resultId, activeId } = req.body;
 
     try {
+        // Convertir questionnaireId a un ObjectId para realizar operaciones en MongoDB.
+        const qId = ObjectId(questionnaireId);
+        console.log(questionnaireId);
+
         const result = await db.collection('active').findOneAndUpdate(
-            { _id: ObjectId(activeId) },
+            { _id: ObjectId(activeId) }, // Localizar el documento activo por su ID
             { 
                 $pull: { 
-                    questionnaires: { $in: [ObjectId(questionnaireId)] }
-                } 
+                    questionnaires: ObjectId(questionnaireId), // Eliminar el questionnaireId del array de questionnaires
+                    order: { questionnaireId: questionnaireId } // Eliminar el objeto de `order` que tenga este questionnaireId
+                },
+                $unset: {
+                    [`questionnairesName.${questionnaireId}`]: "" // Eliminar la entrada del diccionario por el questionnaireId
+                }
+            },
+            {
+                returnDocument: 'after' // Devolver el documento después de la actualización
             }
         );
+        console.log(result);
+        console.log(result.value);
+        console.log(result.value.questionnaires);
 
-        if (result.value && (!result.value.questionnaires || result.value.questionnaires.length === 0)) {
+        if (result && result.value && (!result.value.questionnaires || result.value.questionnaires.length === 1)) {
             await db.collection('active').deleteOne({ _id: ObjectId(activeId) });
         }
         
