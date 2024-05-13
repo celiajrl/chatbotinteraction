@@ -163,6 +163,7 @@
         let nquestionnaires;
         let counter;
         let questionnaireOrder;
+        let normalize;
     
         $(document).ready(function () {
             const urlParams = new URLSearchParams(window.location.search);
@@ -427,11 +428,18 @@
 
         function calculateSUS() {
             let sum = 0;
+            console.log(responses);
             for (const key in responses) {
-                let adjustedValue = (key % 2 === 0) ? 5 - responses[key] : responses[key] - 1;
+                let adjustedValue = (key % 2 === 0) ? 5 - (responses[key]) : responses[key] - 1;
                 sum += adjustedValue;
             }
-            return sum * 2.5; // Multiply sum by 2.5 to get SUS score
+            console.log(sum);
+            normalize = (totalQuestions/2)*8;
+            console.log('normalize: ');
+            console.log(normalize);
+            console.log(100/normalize);
+            
+            return sum * (100/normalize);
         }
 
         function sendResultsToServer(answers, susValue, questionnaireId) {
