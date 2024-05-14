@@ -1,4 +1,15 @@
 <!DOCTYPE html>
+<!-- 
+    index.html
+
+    Descripción: Página inicial que ve el participante para la interacción una vez el 
+    servidor RASA está activo. Incluye una descripción de la prueba, el widget para comunicarse
+    con el chatbot y un botón para acceder a los cuestionarios.
+
+    Año: 2024
+
+    Autora: Celia Jiménez
+-->
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -73,6 +84,7 @@
         const activeId = url.split('/').pop();
         let chatbotMessage;
 
+        // Obtiene la prueba activa (el mensaje de inicio, el chatbot y sus cuestionarios)
         $.get(`http://localhost:3000/active/${activeId}`, function(data) {
                 chatbotMessage = data.chatbotMessage;
                 $('.container').html(`<h1>Welcome to the chatbot test.</h1><p>${chatbotMessage}</p>`);
@@ -85,11 +97,14 @@
                 }
         });
 
+        // Conecta socket que escucha para ver si el servidor se ha activado
         const socket = io('http://localhost:3000');
         socket.on('connect', () => {
             console.log('Connected to server via Socket.IO!');
         });
 
+        // Cuando el socket ha recibido rasaReady, se enseña la página completa (el widget 
+        // a través del que se comunica el participante con el chatbot)
         socket.on('rasaReady', function() {
             const spinner = document.getElementById('spinner');
             const loadingText = document.getElementById('loading-text');
@@ -101,6 +116,7 @@
             button.style.display = 'block';
         });
 
+        // Cuando el participante pulsa el botón, se le redirige a los cuestionarios asociados
         function redirectToQuestionnaire() {
             window.location.href = 'http://localhost:3000/src/fillquestionnaire.html?activeId=' + activeId;
         }

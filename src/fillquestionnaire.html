@@ -1,4 +1,15 @@
 <!DOCTYPE html>
+<!-- 
+    fillquestionnaire.html
+
+    Descripción: Página que muestra los cuestionarios asociados a la prueba activa en el orden
+                 especificado por el creador. Además, recoge las respuestas dadas por el participante
+                 y las envía al servidor.
+
+    Año: 2024
+
+    Autora: Celia Jiménez
+-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -49,8 +60,8 @@
         }
 
         .scale-circle.selected {
-            background-color: #333; /* Dark color for selected */
-            color: #fff; /* White text for selected */
+            background-color: #333; 
+            color: #fff;
         }
 
         .question-cell {
@@ -74,12 +85,12 @@
         }
 
         .answer-cell {
-            padding-bottom: 20px; /* Space between rows */
+            padding-bottom: 20px; 
         }
 
         .text-input, .multiselect-container {
-            width: 200px; /* Width of text and multiselect fields */
-            max-width: 100%; /* Maximum width the same as container */
+            width: 200px; 
+            max-width: 100%; 
         }
 
         .multiselect-container {
@@ -89,7 +100,7 @@
             border: 1px solid #CCC;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             z-index: 5;
-            width: 220px; /* Adjust width as per your design */
+            width: 220px;
             padding: 10px;
             margin-top: 5px;
             max-height: 150px;
@@ -167,10 +178,12 @@
     
         $(document).ready(function () {
             const urlParams = new URLSearchParams(window.location.search);
+            // Obtiene ID del active para proceder a obtener los cuestionarios
             activeId = urlParams.get('activeId');
             $.get(`http://localhost:3000/active/${activeId}`, function(data) {
                 const active = data;
                 if (active && active.questionnaires && active.questionnairesName) {
+                    // Obtiene cuestionarios asociados
                     questionnaireIds = active.questionnaires;
                     nquestionnaires = questionnaireIds.length;
                     questionnaireNames = active.questionnairesName;
@@ -179,6 +192,7 @@
                     chatbotId = active.chatbotId;
                     questionnaireOrder = active.order.sort((a, b) => a.order - b.order);
                     counter = 0;
+                    // Carga primer cuestionario para su visualización
                     loadNextQuestionnaire();
                 }
             }).fail(function(xhr, status, error) {
@@ -187,7 +201,8 @@
             });
         });
         
-
+        // Función que comprueba si se ha hecho bien la compleción del cuestionario (todas las obligatorias contestadas)
+        // y en caso de preconfigurado calcula SUS, en caso de todo correcto procede a llamar a la función que envía datos al servidor.
         async function goToNextQuestionnaire() {
             const answers = Object.values(responses).length;
             // Aquí se calcula si todas las respuestas para preconfigured están presentes
@@ -195,6 +210,7 @@
             let allCustomRequiredAnswered = false;
             
             if (type === "custom") {
+                // Para el custom debe comprobar que todas las obligatorias han sido contestadas
                 allCustomRequiredAnswered = areAllRequiredQuestionsAnswered();
             }
 
@@ -202,13 +218,16 @@
 
             if (allPreconfiguredAnswered || allCustomRequiredAnswered) {
                 if (type === "preconfigured") {
+                    // Si es preconfigurado calcula SUS
                     const susValue = calculateSUS(); 
                     response = await sendResultsToServer(responses, susValue, questionnaireId);
                 } else if (type === "custom") {
+                    // Si es custom, SUS = -1 por simplicidad
                     const susValue = -1;
                     response = await sendResultsToServer(responses, susValue, questionnaireId);
                 }
 
+                // Si se han enviado los resultados correctamente, crea el objeto complete
                 if (response) {
                     await createCompleteObject(questionnaireId, currentQuestionnaireName, response);
                 }
@@ -216,9 +235,11 @@
                 responses = {};
                 totalQuestions = 0;
 
+                // Si siguen quedando cuestionarios por contestar, muestra el siguiente
                 if (nquestionnaires > counter) {
                     loadNextQuestionnaire();
                 } else {
+                    // Si no, muestra mensaje de finalización y cierra la ventana.
                     alert('You have completed all your questionnaires, thank you!');
                     window.close();
                 }
@@ -227,6 +248,7 @@
             }
         }
 
+        // Función que comprueba si todas las preguntas obligatorias han obtenido respuesta
         function areAllRequiredQuestionsAnswered() {
             let allAnswered = true;
             const questions = $('#questionTableBody').find('tr').each(function () {
@@ -235,7 +257,6 @@
                 const isRequired = $row.find('.required-asterisk').length > 0;
                 if (isRequired) {
                     // Si la pregunta es obligatoria, verifica si hay una respuesta.
-                    // Nota: Asegúrate de que cada elemento de entrada tenga un 'id' que coincida con este formato.
                     const response = responses[questionNumber];
                     if (response === undefined || response === '' || (Array.isArray(response) && response.length === 0)) {
                         allAnswered = false;
@@ -248,22 +269,27 @@
         }
 
 
-
+        // Función que obtiene el siguiente cuestionario a mostrar de la lista (lo obtiene en orden ascendente)
         function loadNextQuestionnaire() {
+            // Si siguen quedando cuestionarios
             if (questionnaireIds.length > 0) {
                 const nextQuestionnaire = questionnaireOrder[counter];
                 questionnaireId = nextQuestionnaire.questionnaireId;
                 currentQuestionnaireName = questionnaireNames[questionnaireId]; 
                 counter += 1;
+                // Muestra contador por pantalla
                 updateQuestionnaireCounter();
+                // Obtiene datos del cuestionario a mostrar
                 $.get(`http://localhost:3000/questionnaires/${questionnaireId}`, function(data) {
                     const questionnaire = data;
                     type = questionnaire.type;
                     if (questionnaire && questionnaire.questions) {
                         if (type === 'preconfigured') {
+                            // Si es preconfigurado debe actualizar el numero de preguntas (ya que vienen en pares)
                             totalQuestions = questionnaire.questions.length * 2;
                             displayPreconfiguredQuestions(questionnaire.questions);
                         } else if (type === 'custom') {
+                            // Si es custom, ya vienen las preguntas individuales
                             totalQuestions = questionnaire.questions.length;
                             displayCustomQuestions(questionnaire.questions);
                         }
@@ -272,22 +298,24 @@
             }
         }
 
-        
-
+        // Función que actualiza el contador que se muestra por pantalla 
         function updateQuestionnaireCounter() {
             $('#questionnaireCounter').text(counter + '/' + nquestionnaires);
         }
 
+        // Función encargada de mostrar un cuestionario preconfigurado y sus escalas
         function displayPreconfiguredQuestions(questions) {
             const tbody = $('#questionTableBody');
             tbody.empty();
 
             questions.forEach(function (question, index) {
                 const questionNumber = index + 1; 
+                // Prepara fila nueva para pregunta positiva
                 const row = $('<tr>');
                 const positiveCell = $('<td>').addClass('question-cell').text(questionNumber * 2 - 1 + '. ' + question.positive);
                 const scaleOptionsCell = $('<td>').addClass('scale-options');
 
+                // Añade escala de 5 circulos responsiva para cada pregunta positiva
                 for (let i = 1; i <= 5; i++) {
                     const scaleCircle = $('<div>').addClass('scale-circle').text(i).attr('data-value', i);
                     scaleCircle.click(function () {
@@ -299,10 +327,12 @@
                 row.append(positiveCell, scaleOptionsCell);
                 tbody.append(row);
 
+                // Prepara fila nueva para pregunta negativa
                 const negrow = $('<tr>');
                 const negativeCell = $('<td>').addClass('question-cell').text(questionNumber * 2 + '. ' + question.negative);
                 const scaleOptionsCellneg = $('<td>').addClass('scale-options');
 
+                // Añade escala de 5 circulos responsiva para cada pregunta negativa
                 for (let i = 1; i <= 5; i++) {
                     const scaleCircle = $('<div>').addClass('scale-circle').text(i).attr('data-value', i);
                     scaleCircle.click(function () {
@@ -316,6 +346,7 @@
             });
         }
 
+        // Función encargada de mostrar un cuestionario personalizado y su tipo de respuestas asociadas
         function displayCustomQuestions(questions) {
             const tbody = $('#questionTableBody');
             tbody.empty();
@@ -327,11 +358,11 @@
                 const questionCell = $('<td>').addClass('question-cell').html(questionText);
                 const answerInputCell = $('<td>').addClass('answer-cell'); 
 
-
+                // Según el tipo de respuesta aceptada muestra un widget adecuado
                 switch (question.type.toLowerCase()) {
                     case 'scale':
                         const scaleOptions = $('<div>').addClass('scale-options');
-                        const maxScaleValue = question.numberOfScaleCircles || 5; // Default value if not specified
+                        const maxScaleValue = question.numberOfScaleCircles || 5; // Si no hay tamaño de escala, muestra 5 circulos
                         for (let i = 1; i <= maxScaleValue; i++) {
                             const scaleCircle = $('<div>').addClass('scale-circle').text(i).attr('data-value', i);
                             scaleCircle.click(function () {
@@ -388,7 +419,7 @@
                         break;
                     case 'multiselect':
                         const multiSelectDisplay = $('<div>').addClass('multiselect-display').text('Select Options').click(function() {
-                            $(this).next().toggle(); // Toggle visibility of select
+                            $(this).next().toggle();
                         });
                         const multiSelectInput = $('<select>').addClass('form-control multiselect-container').attr({
                             id: 'answer' + questionNumber,
@@ -420,28 +451,30 @@
             });
         }
 
+        // Función encargada de guardar el resultado de una escala
         function selectScaleValue(questionNumber, value, scaleOptionsCell) {
             scaleOptionsCell.find('.scale-circle').removeClass('selected');
             scaleOptionsCell.find(`.scale-circle[data-value="${value}"]`).addClass('selected');
             responses[questionNumber] = value;
         }
 
+        // Función encargada de calcular la puntuación SUS asociada a un preconfigurado
         function calculateSUS() {
             let sum = 0;
-            console.log(responses);
+            // Si es pregunta positiva, hace valor - 1, si es negativa, hace 5 - valor
             for (const key in responses) {
                 let adjustedValue = (key % 2 === 0) ? 5 - (responses[key]) : responses[key] - 1;
+                // Cada nuevo valor se suma
                 sum += adjustedValue;
             }
-            console.log(sum);
+
+            // Como puede ser un cuestionario con un número cualquiera (par) de preguntas,
+            // halla factor de normalización
             normalize = (totalQuestions/2)*8;
-            console.log('normalize: ');
-            console.log(normalize);
-            console.log(100/normalize);
-            
             return sum * (100/normalize);
         }
 
+        // Función para enviar resultados al servidor (se hace cada vez que se finaliza un cuestionario)
         function sendResultsToServer(answers, susValue, questionnaireId) {
             // Devolver una promesa desde la función
             return new Promise((resolve, reject) => {
@@ -473,11 +506,13 @@
             });
         }
 
+        // Función para crear un objeto complete nuevo (asociandolo a las respuestas)
         function createCompleteObject(questionnaireId, questionnaireName, resultId) {
-            console.log('creo complete');
+            // Fecha de compleción
             const localDate = new Date().toLocaleString('es-ES', {
                                 timeZone: 'Europe/Madrid'  
                             });
+            // Datos de compleción
             const completeData = {
                 userId: userId,
                 participantId: participantId,
@@ -488,8 +523,6 @@
                 date: localDate,
                 activeId: activeId
             };
-
-            console.log(completeData);
 
             $.ajax({
                 type: 'POST',
